@@ -4,11 +4,6 @@ import logging
 import sys
 import os
 
-# Adiciona diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-=======
->>>>>>> 264fb42d7e4385eadda25fd1f250ebe8d81701db
 from decimal import Decimal
 from src.domain.dtos import FiscalItemDTO
 from src.domain.exceptions import AuditTaxException, XMLParseException
