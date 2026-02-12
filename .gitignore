@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+
+# Project Artifacts
+test_results_manual.txt
+verify_all.txt
+test_report.csv
+relatorio_auditoria_*.csv
+
+# OS
+Thumbs.db
+Desktop.ini
