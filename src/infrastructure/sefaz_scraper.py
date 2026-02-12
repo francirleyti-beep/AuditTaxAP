@@ -1,7 +1,10 @@
+from typing import List, Optional
 from decimal import Decimal
-from typing import List
-import time
 from src.domain.dtos import FiscalItemDTO
+from src.infrastructure.sefaz.scraper import SefazScraper
+
+# Mantém compatibilidade com imports antigos
+__all__ = ["SefazScraper"]
 
 # Dependências externas (simuladas se não instaladas)
 try:

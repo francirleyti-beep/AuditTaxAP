@@ -17,7 +17,10 @@ class TestSefazScraper(unittest.TestCase):
         
         # Instancia Scraper sem driver (bypass __init__ real)
         # Hack para testar apenas o parser sem precisar do Selenium instalado agora
-        self.scraper = SefazScraper.__new__(SefazScraper) 
+        self.scraper = SefazScraper.__new__(SefazScraper)
+        # Manually initialize parser component for the new modular structure
+        from src.infrastructure.sefaz.html_parser import SefazHTMLParser
+        self.scraper.parser = SefazHTMLParser()
 
     def test_parse_html(self):
         # Simula imports do BS4

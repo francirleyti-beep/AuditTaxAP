@@ -3,10 +3,9 @@ from datetime import datetime
 from src.domain.dtos import AuditResultDTO
 
 class ReportGenerator:
-    def generate_excel(self, audit_results: list[AuditResultDTO], output_path: str = "relatorio_auditoria.csv"):
+    def generate_csv(self, audit_results: list[AuditResultDTO], output_path: str = "relatorio_auditoria.csv"):
         """
         Gera um relatório CSV com os resultados da auditoria.
-        (Mantido nome do método para compatibilidade, mas gera CSV)
         """
         
         # Adiciona timestamp no nome se não fornecido

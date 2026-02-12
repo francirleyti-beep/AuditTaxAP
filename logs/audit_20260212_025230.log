@@ -1,0 +1,22 @@
+2026-02-12 02:52:59 - src.core.auditor - INFO - AuditEngine inicializado com 7 regras.
+2026-02-12 02:52:59 - src.services.audit_service - INFO - Iniciando auditoria para arquivo: tests\samples\31260143214055000107550000252249671861701608.xml
+2026-02-12 02:52:59 - src.services.audit_service - INFO - XML processado. Itens: 14. Chave: 31260143214055000107550000252249671861701608
+2026-02-12 02:52:59 - src.infrastructure.sefaz.scraper - INFO - Buscando memorial SEFAZ: 31260143214055000107550000252249671861701608
+2026-02-12 02:52:59 - src.infrastructure.sefaz.driver_manager - INFO - Inicializando WebDriver...
+2026-02-12 02:53:00 - src.infrastructure.sefaz.driver_manager - INFO - Acessado: http://www.sefaz.ap.gov.br/EMISSAO/memorial.php
+2026-02-12 02:53:46 - src.infrastructure.sefaz.driver_manager - INFO - HTML capturado: 76019 chars
+2026-02-12 02:53:46 - src.infrastructure.sefaz.html_parser - INFO - Iniciando parse do HTML...
+2026-02-12 02:53:46 - src.infrastructure.sefaz.cfop_extractor - INFO - CFOP extraídos: 1 itens, default=6110
+2026-02-12 02:53:46 - src.infrastructure.sefaz.item_extractor - INFO - Encontrados 14 blocos de itens
+2026-02-12 02:53:46 - src.infrastructure.sefaz.html_parser - INFO - ✓ Parse concluído: 14 itens extraídos
+2026-02-12 02:53:46 - src.infrastructure.sefaz.driver_manager - INFO - Fechando WebDriver...
+2026-02-12 02:53:48 - src.services.audit_service - INFO - Dados SEFAZ obtidos. Itens: 14
+2026-02-12 02:53:48 - src.services.audit_service - ERROR - Erro ao gerar relatório: 'ReportGenerator' object has no attribute 'generate_csv'
+2026-02-12 02:53:48 - __main__ - CRITICAL - Erro inesperado: 'ReportGenerator' object has no attribute 'generate_csv'
+Traceback (most recent call last):
+  File "C:\Projetos\AuditTaxAP\main.py", line 35, in main
+    report_path = service.process_audit(xml_path, nfe_key)
+  File "C:\Projetos\AuditTaxAP\src\services\audit_service.py", line 63, in process_audit
+    report_path = self.reporter.generate_csv(audit_results)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ReportGenerator' object has no attribute 'generate_csv'. Did you mean: 'generate_excel'?
