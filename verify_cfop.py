@@ -1,0 +1,19 @@
+import sys
+import os
+
+# Add src to path
+sys.path.append(os.getcwd())
+
+from src.infrastructure.sefaz_scraper import SefazScraper
+
+path = r"c:\Projetos\AuditTaxAP\tests\samples\52260277595395006269550050000238801206971225\SEFAZ-AP_MATHEUS.html"
+
+with open(path, "r", encoding="windows-1252") as f: # Try windows-1252
+    html = f.read()
+
+scraper = SefazScraper()
+items = scraper.parse_html(html)
+
+print(f"Total Items: {len(items)}")
+for item in items:
+    print(f"Item {item.item_index}: CFOP='{item.cfop}'")

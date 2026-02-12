@@ -20,7 +20,10 @@ class AuditEngine:
         self._check_equality(differences, "NCM", xml_item.ncm, sefaz_item.ncm)
         self._check_equality(differences, "CEST", xml_item.cest, sefaz_item.cest)
         self._check_equality(differences, "CFOP", xml_item.cfop, sefaz_item.cfop)
-        self._check_equality(differences, "CST", xml_item.cst, sefaz_item.cst)
+        # CST Normalizado
+        cst_xml = xml_item.cst.lstrip("0") if xml_item.cst else ""
+        cst_sefaz = sefaz_item.cst.lstrip("0") if sefaz_item.cst else ""
+        self._check_equality(differences, "CST", cst_xml, cst_sefaz)
 
         # 2. Auditoria de Valores (RF05)
         # Verifica se o valor cobrado pela sefaz bate com o calculado (ou XML vs SEFAZ direto)

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe13220107293118000188550010000001011000001014" versao="4.00">
+      <det nItem="1">
+        <prod>
+          <cProd>PROD-001</cProd>
+          <xProd>Produto Teste A</xProd>
+          <NCM>22021000</NCM>
+          <CEST>0300700</CEST>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>10.0000</qCom>
+          <vUnCom>10.0000</vUnCom>
+          <vProd>100.00</vProd>
+          <cEAN>7891234567890</cEAN>
+          <cEANTrib>7891234567890</cEANTrib>
+        </prod>
+        <imposto>
+          <ICMS>
+            <ICMS00>
+              <orig>0</orig>
+              <CST>00</CST>
+              <modBC>3</modBC>
+              <vBC>100.00</vBC>
+              <pICMS>18.00</pICMS>
+              <vICMS>18.00</vICMS>
+            </ICMS00>
+            <!-- Simulando MVA ST em outro bloco para teste de lógica -->
+            <!-- <ICMS10> ... <pMVAST>40.00</pMVAST> </ICMS10> -->
+          </ICMS>
+        </imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>PROD-002-SUFRAMA</cProd>
+          <xProd>Produto Teste B (Suframa)</xProd>
+          <NCM>84713012</NCM>
+          <CEST>0100100</CEST>
+          <CFOP>6109</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>2000.0000</vUnCom>
+          <vProd>2000.00</vProd>
+        </prod>
+        <imposto>
+          <ICMS>
+            <ICMS40>
+              <orig>0</orig>
+              <CST>40</CST>
+              <vICMSDeson>360.00</vICMSDeson>
+              <motDesICMS>7</motDesICMS> <!-- 7 = Suframa -->
+            </ICMS40>
+          </ICMS>
+        </imposto>
+      </det>
+    </infNFe>
+  </NFe>
+</nfeProc>
