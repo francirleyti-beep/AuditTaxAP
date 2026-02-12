@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 from typing import List, Optional
 from decimal import Decimal
 from src.domain.dtos import FiscalItemDTO
+=======
+>>>>>>> 264fb42d7e4385eadda25fd1f250ebe8d81701db
 from src.infrastructure.sefaz.scraper import SefazScraper
 
 # Mantém compatibilidade com imports antigos
