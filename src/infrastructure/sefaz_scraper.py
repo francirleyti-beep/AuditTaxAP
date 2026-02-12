@@ -77,6 +77,7 @@ class SefazScraper:
         # O CFOP fica numa tabela separada "INFORMACOES DETALHADAS DA COBRANCA"
         # Vamos mapear Item Index -> CFOP
         cfop_map = {}
+        default_cfop = ""
         try:
              # Busca TODAS as tabelas que tenham o header específico
              target_tables = soup.find_all("table")
@@ -95,7 +96,9 @@ class SefazScraper:
                                 # Ex: "6110-VENDA..."
                                 cfop_code = cfop_text.split("-")[0].strip()
                                 cfop_map[idx] = cfop_code
-             print(f"DEBUG: Mapa CFOP extraído: {cfop_map}")
+                                if not default_cfop:
+                                    default_cfop = cfop_code
+             print(f"DEBUG: Mapa CFOP extraído: {cfop_map}, Default: {default_cfop}")
         except Exception as e:
             print(f"Erro ao extrair mapa CFOP: {e}")
 
@@ -163,8 +166,11 @@ class SefazScraper:
                 # CFOP / Operação
                 # Prioridade: Mapa extraído da tabela resumo
                 cfop = cfop_map.get(item_idx, "")
+                if not cfop and default_cfop:
+                    cfop = default_cfop # Fallback para CFOP global do grupo
+                
                 if not cfop:
-                    # Fallback: Tenta achar no data_map (improvável ser achado aqui se não tem h5, mas ok)
+                    # Fallback secundário: Tenta achar no data_map
                     cfop_full = data_map.get("OPERACAO", "") or data_map.get("NATUREZA", "") or data_map.get("OPERAÇÃO", "")
                     cfop = cfop_full.split(" ")[0].split("-")[0].strip() if cfop_full else ""
 
