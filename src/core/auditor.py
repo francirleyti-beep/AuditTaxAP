@@ -21,8 +21,9 @@ class AuditEngine:
         self._check_equality(differences, "CEST", xml_item.cest, sefaz_item.cest)
         self._check_equality(differences, "CFOP", xml_item.cfop, sefaz_item.cfop)
         # CST Normalizado
-        cst_xml = xml_item.cst.lstrip("0") if xml_item.cst else ""
-        cst_sefaz = sefaz_item.cst.lstrip("0") if sefaz_item.cst else ""
+        # CST Normalizado para 3 dígitos (ex: 40 -> 040)
+        cst_xml = xml_item.cst.strip().zfill(3) if xml_item.cst else ""
+        cst_sefaz = sefaz_item.cst.strip().zfill(3) if sefaz_item.cst else ""
         self._check_equality(differences, "CST", cst_xml, cst_sefaz)
 
         # 2. Auditoria de Valores (RF05)
