@@ -59,6 +59,10 @@ class ItemExtractor:
         
         # 4. Obter linhas seguintes
         row2, row3, row4 = self._get_sibling_rows(row1)
+
+        # Fallback: Se não achou dados na linha 1, tenta linha 2 (Layout B)
+        if not data_map and row2:
+             data_map = self._extract_data_map(row2)
         
         # 5. Definir CFOP (Prioridade: Mapa > Default > DataMap)
         cfop = cfop_map.get(item_idx, default_cfop)

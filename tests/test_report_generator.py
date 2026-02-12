@@ -1,13 +1,6 @@
 import unittest
 import os
-<<<<<<< HEAD
-import sys
 
-# Adiciona diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-=======
->>>>>>> 264fb42d7e4385eadda25fd1f250ebe8d81701db
 from src.presentation.report_generator import ReportGenerator
 from src.domain.dtos import AuditResultDTO, AuditDifference
 

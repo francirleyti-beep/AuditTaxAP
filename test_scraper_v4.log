@@ -1,0 +1,72 @@
+================================================================================
+TESTE DO SCRAPER V4 - CFOP e CST
+================================================================================
+
+Lendo HTML: c:\Projetos\AuditTaxAP\tests\samples\52260277595395006269550050000238801206971225\SEFAZ-AP_MATHEUS.html
+Tamanho do HTML: 71011 chars
+
+ETAPA 1: Extraindo mapa de CFOP...
+------------------------------------------------------------
+Tabela de CFOP encontrada (índice 1)!
+Processando 1 linhas...
+  Item 1 -> CFOP 6110
+
+Mapa CFOP: {1: '6110'}
+CFOP Default: 6110
+
+ETAPA 2: Extraindo dados dos blocos H2...
+------------------------------------------------------------
+Encontrados 6 blocos H2
+
+
+Item 1:
+  H2 Text: ITEM:1
+  CST Raw: '040 R$ 0,00'
+  CST Extraído: '040' (len=3)
+  CFOP: '6110'
+  NCM: '04069020'
+  CEST: '1702400'
+
+Item 2:
+  H2 Text: ITEM:2
+  CST Raw: '040 R$ 0,00'
+  CST Extraído: '040' (len=3)
+  CFOP: '6110'
+  NCM: '04061010'
+  CEST: '1702401'
+
+Item 3:
+  H2 Text: ITEM:3
+  CST Raw: '040 R$ 0,00'
+  CST Extraído: '040' (len=3)
+  CFOP: '6110'
+  NCM: '04061010'
+  CEST: '1702401'
+
+Item 4:
+  H2 Text: ITEM:4
+  CST Raw: '040 R$ 0,00'
+  CST Extraído: '040' (len=3)
+  CFOP: '6110'
+  NCM: '04061090'
+  CEST: '1702300'
+
+Item 5:
+  H2 Text: ITEM:5
+  CST Raw: '040 R$ 0,00'
+  CST Extraído: '040' (len=3)
+  CFOP: '6110'
+  NCM: '04061090'
+  CEST: '1702300'
+
+Item 6:
+  H2 Text: ITEM:6
+  CST Raw: '040 R$ 0,00'
+  CST Extraído: '040' (len=3)
+  CFOP: '6110'
+  NCM: '04015029'
+  CEST: '1701902'
+
+================================================================================
+TESTE CONCLUÍDO
+================================================================================

@@ -37,7 +37,7 @@ class TestAuditEngine(unittest.TestCase):
         result = self.engine.audit_item(item_xml, item_sefaz)
         self.assertFalse(result.is_compliant)
         self.assertEqual(len(result.differences), 1)
-        self.assertIn("MVA %", result.differences[0].message)
+        self.assertIn("MVA divergente", result.differences[0].message)
 
 if __name__ == '__main__':
     unittest.main()

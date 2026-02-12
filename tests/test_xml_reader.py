@@ -14,7 +14,7 @@ class TestXMLReader(unittest.TestCase):
         self.sample_xml = os.path.join("tests", "samples", "nfe_sample.xml")
 
     def test_parse_sample(self):
-        items = self.reader.parse(self.sample_xml)
+        _, items = self.reader.parse(self.sample_xml)
         
         self.assertEqual(len(items), 2, "Deve encontrar 2 itens no XML de amostra")
         

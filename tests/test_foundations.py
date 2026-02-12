@@ -1,6 +1,5 @@
 import unittest
 import logging
-<<<<<<< HEAD
 import sys
 import os
 
@@ -9,10 +8,7 @@ from src.domain.dtos import FiscalItemDTO
 from src.domain.exceptions import AuditTaxException, XMLParseException
 from src.utils.logging_config import setup_logging
 from pathlib import Path
-<<<<<<< HEAD
-=======
-import os
->>>>>>> 264fb42d7e4385eadda25fd1f250ebe8d81701db
+
 
 class TestFoundations(unittest.TestCase):
     
@@ -91,11 +87,7 @@ class TestFoundations(unittest.TestCase):
         logger.info("Teste de log")
         
         # Fechar handlers para liberar arquivo
-<<<<<<< HEAD
         handlers = list(logger.root.handlers)
-=======
-        handlers = logger.root.handlers[:]
->>>>>>> 264fb42d7e4385eadda25fd1f250ebe8d81701db
         for handler in handlers:
              handler.close()
              logger.root.removeHandler(handler)

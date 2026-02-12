@@ -1,0 +1,12 @@
+test_parse_sample (tests.test_xml_reader.TestXMLReader.test_parse_sample) ... ok
+test_audit_failure_mva (tests.test_audit.TestAuditEngine.test_audit_failure_mva) ... ok
+test_audit_success (tests.test_audit.TestAuditEngine.test_audit_success) ... ok
+test_cfop_extractor (tests.test_modular_scraper.TestModularScraper.test_cfop_extractor) ... ok
+test_item_extractor (tests.test_modular_scraper.TestModularScraper.test_item_extractor) ... ok
+test_item_extractor_default_cfop (tests.test_modular_scraper.TestModularScraper.test_item_extractor_default_cfop) ... ok
+test_parse_html (tests.test_scraper.TestSefazScraper.test_parse_html) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.023s
+
+OK
