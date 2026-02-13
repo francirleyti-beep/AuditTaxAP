@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, AlertTriangle, Play, Download, RefreshCw, X } from 'lucide-react';
-import { uploadXml, startAudit, getAuditStatus, getDownloadUrl } from '../api';
+import { uploadXml, startAudit, getAuditStatus, getDownloadUrl, getAuditResults } from '../api';
+import ResultsTable from './ResultsTable';
 
 const AuditInterface: React.FC = () => {
     const [activeStep, setActiveStep] = useState<'upload' | 'processing' | 'results'>('upload');
@@ -24,8 +25,16 @@ const AuditInterface: React.FC = () => {
                     setStatusMessage(status.step);
 
                     if (status.status === 'completed') {
+                        // Fetch detailed results
+                        try {
+                            const results = await getAuditResults(auditId);
+                            // Combine status info with detailed results
+                            setAuditResult({ ...status, result: results });
+                        } catch (e) {
+                            console.error("Error fetching results", e);
+                            setAuditResult(status);
+                        }
                         setActiveStep('results');
-                        setAuditResult(status); // Store the full status/result
                         clearInterval(interval);
                     } else if (status.status === 'error') {
                         setError(status.error || 'Erro desconhecido');
@@ -229,14 +238,21 @@ const AuditInterface: React.FC = () => {
 
                 {/* RESULTS VIEW */}
                 {activeStep === 'results' && auditResult && (
-                    <div className="flex-1 p-8 animate-in fade-in">
-                        <div className="flex justify-between items-start mb-8">
+                    <div className="flex-1 p-8 animate-in fade-in flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h2 className="text-2xl font-bold text-slate-900 mb-2">Resultados da Auditoria</h2>
-                                <p className="text-slate-500">ID: {auditId}</p>
+                                <p className="text-slate-500 flex items-center gap-2">
+                                    <span className="font-mono bg-slate-100 px-2 py-1 rounded text-xs">{auditId}</span>
+                                    {auditResult.result?.summary && (
+                                        <span className="text-sm">
+                                            • {auditResult.result.summary.total} itens processados
+                                        </span>
+                                    )}
+                                </p>
                             </div>
                             <div className="flex space-x-3">
-                                <button onClick={handleReset} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium flex items-center space-x-2 transition-colors">
+                                <button onClick={handleReset} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium flex items-center space-x-2 transition-colors border border-slate-200">
                                     <RefreshCw size={18} />
                                     <span>Nova Auditoria</span>
                                 </button>
@@ -253,28 +269,47 @@ const AuditInterface: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
-                                <p className="text-sm text-slate-500 mb-1">Status Final</p>
-                                <p className="text-xl font-semibold text-green-600 flex items-center space-x-2">
-                                    <CheckCircle size={20} />
-                                    <span>Concluído</span>
-                                </p>
+                        {/* Metrics Cards */}
+                        {auditResult.result?.summary && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-500 mb-1">Total de Itens</p>
+                                        <p className="text-2xl font-bold text-slate-800">{auditResult.result.summary.total}</p>
+                                    </div>
+                                    <div className="bg-blue-50 p-2 rounded-lg text-blue-600">
+                                        <FileText size={24} />
+                                    </div>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-500 mb-1">Conformes</p>
+                                        <p className="text-2xl font-bold text-green-600">{auditResult.result.summary.compliant}</p>
+                                    </div>
+                                    <div className="bg-green-50 p-2 rounded-lg text-green-600">
+                                        <CheckCircle size={24} />
+                                    </div>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-500 mb-1">Divergentes</p>
+                                        <p className="text-2xl font-bold text-orange-600">{auditResult.result.summary.divergent}</p>
+                                    </div>
+                                    <div className="bg-orange-50 p-2 rounded-lg text-orange-600">
+                                        <AlertTriangle size={24} />
+                                    </div>
+                                </div>
                             </div>
-                            {/* Add more metrics here if backend provides them */}
-                        </div>
+                        )}
 
-                        <div className="bg-slate-50 rounded-xl p-8 text-center border border-slate-200">
-                            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-slate-900 mb-2">Relatório Gerado com Sucesso</h3>
-                            <p className="text-slate-500 mb-6">O arquivo contém a análise detalhada de todas as divergências encontradas.</p>
-                            {auditId && (
-                                <a
-                                    href={getDownloadUrl(auditId)}
-                                    className="text-blue-600 font-medium hover:text-blue-800 underline"
-                                >
-                                    Clique aqui para baixar o relatório completo
-                                </a>
+                        {/* Interactive Table */}
+                        <div className="flex-1 min-h-0">
+                            {auditResult.result?.items ? (
+                                <ResultsTable items={auditResult.result.items} />
+                            ) : (
+                                <div className="text-center py-12 text-slate-400">
+                                    Carregando detalhes...
+                                </div>
                             )}
                         </div>
                     </div>

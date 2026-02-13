@@ -21,10 +21,10 @@ class AuditService:
         self.auditor = AuditEngine()
         self.reporter = ReportGenerator()
 
-    def process_audit(self, xml_path: str, nfe_key: str = "") -> str:
+    def process_audit(self, xml_path: str, nfe_key: str = "") -> tuple[str, List[AuditResultDTO]]:
         """
         Executa fluxo completo de auditoria.
-        Retorna caminho do relatório gerado.
+        Retorna (caminho_relatorio, lista_resultados).
         """
         self.logger.info(f"Iniciando auditoria para arquivo: {xml_path}")
         
@@ -62,7 +62,7 @@ class AuditService:
         try:
             report_path = self.reporter.generate_csv(audit_results)
             self.logger.info(f"Relatório gerado em: {report_path}")
-            return report_path
+            return report_path, audit_results
         except Exception as e:
             self.logger.error(f"Erro ao gerar relatório: {e}")
             raise

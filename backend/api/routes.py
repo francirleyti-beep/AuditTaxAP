@@ -48,7 +48,19 @@ def process_audit_background(audit_id: str, xml_path: Path):
         db.commit()
         
         # This runs the full audit flow (Read -> Scrape -> Audit -> Report)
-        report_path = service.process_audit(str(xml_path))
+        report_path, audit_results = service.process_audit(str(xml_path))
+        
+        # Save results to DB
+        for res in audit_results:
+            item = AuditItem(
+                audit_id=audit_id,
+                item_index=res.item_index,
+                product_code=res.product_code,
+                product_name=f"ITEM {res.item_index}", # Placeholder, maybe expand DTO later
+                status="compliant" if res.is_compliant else "divergent",
+                issues=[d.message for d in res.differences]
+            )
+            db.add(item)
         
         # Move report
         final_report_path = REPORTS_DIR / f"{audit_id}_report.csv"
@@ -60,6 +72,11 @@ def process_audit_background(audit_id: str, xml_path: Path):
         audit.current_step = "Concluído"
         audit.report_path = str(final_report_path)
         audit.completed_at = datetime.utcnow()
+        audit.result_summary = {
+            "total": len(audit_results),
+            "compliant": len([r for r in audit_results if r.is_compliant]),
+            "divergent": len([r for r in audit_results if not r.is_compliant])
+        }
         db.commit()
         
     except Exception as e:
@@ -146,3 +163,27 @@ async def download_report(audit_id: str):
         media_type="text/csv",
         filename=f"auditoria_{audit_id}.csv"
     )
+
+@router.get("/audit/{audit_id}/results")
+async def get_audit_results(audit_id: str, db: Session = Depends(get_db)):
+    """Retorna os resultados detalhados da auditoria."""
+    audit = db.query(Audit).filter(Audit.id == audit_id).first()
+    if not audit:
+        raise HTTPException(404, "Auditoria não encontrada")
+        
+    items = db.query(AuditItem).filter(AuditItem.audit_id == audit_id).order_by(AuditItem.item_index).all()
+    
+    return {
+        "audit_id": audit.id,
+        "summary": audit.result_summary,
+        "items": [
+            {
+                "item_index": item.item_index,
+                "product_code": item.product_code,
+                "product_name": item.product_name,
+                "status": item.status,
+                "issues": item.issues
+            }
+            for item in items
+        ]
+    }

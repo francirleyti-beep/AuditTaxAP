@@ -1,0 +1,7 @@
+﻿Item,Produto,Status,Divergências,Detalhes
+1,000205,DIVERGENTE,Diferença de valor > 0.05; MVA divergente,TAX_VALUE: XML=0.00 | SEFAZ=455.25 || MVA %: XML=0.00 | SEFAZ=30.00
+2,021348,DIVERGENTE,Diferença de valor > 0.05; MVA divergente,TAX_VALUE: XML=0.00 | SEFAZ=292.59 || MVA %: XML=0.00 | SEFAZ=30.00
+3,109879,DIVERGENTE,Diferença de valor > 0.05; MVA divergente,TAX_VALUE: XML=0.00 | SEFAZ=36.96 || MVA %: XML=0.00 | SEFAZ=30.00
+4,069918,DIVERGENTE,Diferença de valor > 0.05; MVA divergente,TAX_VALUE: XML=0.00 | SEFAZ=36.29 || MVA %: XML=0.00 | SEFAZ=37.00
+5,069916,DIVERGENTE,Diferença de valor > 0.05; MVA divergente,TAX_VALUE: XML=0.00 | SEFAZ=22.62 || MVA %: XML=0.00 | SEFAZ=37.00
+6,000239,DIVERGENTE,Diferença de valor > 0.05; MVA divergente,TAX_VALUE: XML=0.00 | SEFAZ=11.41 || MVA %: XML=0.00 | SEFAZ=31.00
