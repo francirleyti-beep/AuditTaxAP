@@ -1,0 +1,62 @@
+<html><head>
+		<title>SEFAZ-AP/MATHEUS</title>
+        <link href="css/matheus.css" rel="stylesheet">
+                
+        <link rel="stylesheet" href="css/jquery-ui.css">
+        <script src="css/jquery-1.8.2.js"></script>
+        <script src="css/jquery-ui.js"></script>
+        <script>
+                $(function() {
+                             $("#calendario_a").datepicker({dateFormat: 'dd-mm-yy'});
+                             $("#calendario_b").datepicker({dateFormat: 'dd-mm-yy'});
+                             $("#calendario_c").datepicker({dateFormat: 'dd-mm-yy'});
+                             $("#calendario_d").datepicker({dateFormat: 'dd-mm-yy'});
+                             $("#calendario_e").datepicker({dateFormat: 'dd-mm-yy'});
+                             });
+        </script>
+
+        <script>
+                function target_popup(form) {
+                         window.open('', 'formpopup', 'width=500,height=700,resizable=no,scrollbars=no,status=no,titlebar=no,fullscreen=no,location=no,menubar=no');
+                         form.target = 'formpopup';
+                }
+        </script>
+
+
+        <script>
+                function target_popup(form) {
+                         window.open('', 'formpopup', 'width=500,height=700,resizable=no,scrollbars=no,status=no,titlebar=no,fullscreen=no,location=no,menubar=no');
+                         form.target = 'formpopup';
+                }
+                
+                function target_popup_mdfe(form) {
+                         window.open('', 'formpopup', 'width=800,height=900,resizable=yes,scrollbars=no,status=no,titlebar=no,fullscreen=no,location=no,menubar=no');
+                         form.target = 'formpopup';
+                }
+
+                function target_popup_uc(form) {
+                         window.open('', 'formpopup', 'width=600,height=750,resizable=yes,scrollbars=no,status=no,titlebar=no,fullscreen=no,location=no,menubar=no');
+                         form.target = 'formpopup';
+                }
+                
+                function f_mostrar_alerta(msg){
+                         alert(msg);
+                }
+
+                function f_mostrar_detalhes(){
+                         alert('exibe');
+                         document.getElementById('exibe_detalhes').style.display="none";
+                }
+
+                function f_oculta_detalhes(){
+                         alert('oculta');
+                         document.getElementById('exibe_detalhes').style.visibility="hidden";
+                }
+
+        </script>
+
+
+</head>
+
+
+<body><div id="manut"><table align="center"><tbody><tr><td><img src="images/logo_amapa_branco.png" width="160" height="47"></td><td><h2>SECRETARIA DE ESTADO DA FAZENDA - SEFAZ/AP</h2><h2>SECRETARIA ADJUNTA DA RECEITA ESTADUAL - COORDENACAO DE FISCALIZACAO</h2><h2>CONSULTA MEMORIAL DE NOTA FISCAL ELETRONICA</h2></td></tr><tr><td align="center" colspan="2"><h2><form action="exibe_memorial.php" name="form" method="post">CHAVE DA NFe<br><input type="text" name="NFE_CHAVE" value="" placeholder="CHAVE DA NFe" maxlength="44" style="width: 25em;" required=""><br><br><img src="memo_captcha.php?l=150&amp;a=50&amp;tf=20&amp;ql=5"><br><br><input type="text" name="palavra" maxlength="5" style="width: 5em;" required=""><br><br><input type="submit" value="Validar Palavra de Seguranca"></form></h2></td></tr><tr></tr><tr><td align="center" colspan="2"><h5>Sr. Usuario<br>Faca a validacao da palavra de segurança, evitando problemas de acesso.</h5></td></tr><tr></tr></tbody></table></div></body></html>

@@ -47,12 +47,30 @@ class SeleniumDriverManager:
             raise
 
     def wait_for_manual_input(self):
-        """Aguarda input manual do usuário (captcha, etc)."""
-        print("\n>>> AÇÃO MANUAL NECESSÁRIA <<<")
-        print("1. O navegador foi aberto.")
-        print("2. Preencha o Captcha e clique em Consultar.")
-        print("3. Aguarde a tabela de resultados aparecer.")
-        input("Pressione ENTER aqui quando a tabela estiver visível no navegador...")
+        """
+        Aguarda o carregamento da página de resultados após o captcha.
+        Substitui o input manual por espera explícita do elemento chave.
+        """
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+
+        self.logger.info("Aguardando resolução do Captcha e carregamento da página...")
+        
+        try:
+            # Aguarda até 300 segundos (5 minutos) para o usuário resolver o captcha
+            # Procura por "IMPOSTO COBRADO" que é um cabeçalho da tabela de resultados
+            # "MEMORIAL" sozinha dava match na página de login ("CONSULTA MEMORIAL...")
+            WebDriverWait(self.driver, 300).until(
+                EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'IMPOSTO COBRADO')]"))
+            )
+            self.logger.info("Página de resultados detectada (Tabela encontrada)!")
+            # Pequeno delay para garantir renderização completa
+            time.sleep(2)
+            
+        except Exception as e:
+            self.logger.error("Timeout aguardando a página de resultados.")
+            raise RuntimeError("Tempo excedido para resolução do Captcha. Tente novamente.") from e
     
     def get_page_source(self) -> str:
         """Retorna HTML da página atual."""
