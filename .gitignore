@@ -1,31 +1,87 @@
-# Python
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Environments
-.env
-.venv
-env/
+# Virtual Environment
 venv/
+env/
 ENV/
+.venv/
 env.bak/
 venv.bak/
 
-# Logs
-*.log
-logs/
+# Testing & Coverage
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
 
-# IDE
+# --- Node.js / React (Frontend) ---
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.pnp
+frontend/.pnp.js
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# --- Environment Variables ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- IDEs & Editors ---
 .idea/
 .vscode/
+*.swp
+*.swo
+.DS_Store
 
-# Project Artifacts
-test_results_manual.txt
-verify_all.txt
-test_report.csv
-relatorio_auditoria_*.csv
+# --- Project Specific ---
+# Uploads & Reports (Local storage)
+uploads/
+reports/
 
-# OS
+# Database (SQLite)
+*.db
+*.sqlite3
+audit_history.db
+
+# Docker
+docker-compose.override.yml
+
+# Checkpoints & Logs
+*.log
+logs/
+celerybeat-schedule
+celerybeat.pid
+
+# OS Generated
 Thumbs.db
 Desktop.ini
