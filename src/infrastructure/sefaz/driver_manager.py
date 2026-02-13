@@ -14,8 +14,9 @@ class SeleniumDriverManager:
     # URL Baseada no código anterior
     URL_SEFAZ = Config.SEFAZ_URL
     
-    def __init__(self, headless: bool = False):
+    def __init__(self, headless: bool = False, remote_url: Optional[str] = None):
         self.headless = headless
+        self.remote_url = remote_url or Config.SELENIUM_REMOTE_URL # Add to config
         self.driver: Optional[webdriver.Chrome] = None
         self.logger = logging.getLogger(__name__)
     
@@ -39,7 +40,15 @@ class SeleniumDriverManager:
         
         self.logger.info("Inicializando WebDriver...")
         try:
-            self.driver = webdriver.Chrome(options=options)
+            if self.remote_url:
+                self.logger.info(f"Conectando ao WebDriver Remoto em: {self.remote_url}")
+                self.driver = webdriver.Remote(
+                    command_executor=self.remote_url,
+                    options=options
+                )
+            else:
+                self.driver = webdriver.Chrome(options=options)
+            
             self.driver.get(self.URL_SEFAZ)
             self.logger.info(f"Acessado: {self.URL_SEFAZ}")
         except Exception as e:

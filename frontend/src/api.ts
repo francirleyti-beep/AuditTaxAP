@@ -55,3 +55,21 @@ export const getAuditResults = async (auditId: string): Promise<AuditResultsResp
     const response = await axios.get(`${API_URL}/audit/${auditId}/results`);
     return response.data;
 };
+
+export interface AuditSummary {
+    id: string;
+    nfe_key: string;
+    status: string;
+    created_at: string;
+    completed_at: string | null;
+    summary: {
+        total: number;
+        compliant: number;
+        divergent: number;
+    } | null;
+}
+
+export const getAudits = async (skip = 0, limit = 20): Promise<AuditSummary[]> => {
+    const response = await axios.get(`${API_URL}/audits?skip=${skip}&limit=${limit}`);
+    return response.data;
+};

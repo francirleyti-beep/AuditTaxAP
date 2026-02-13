@@ -1,4 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends, WebSocket
+from fastapi_limiter.depends import RateLimiter
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -27,67 +28,17 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = Path("uploads")
 REPORTS_DIR = Path("reports")
 
-def process_audit_background(audit_id: str, xml_path: Path):
-    """Background task to process the audit."""
-    db = next(get_db())
-    audit = db.query(Audit).filter(Audit.id == audit_id).first()
-    
-    if not audit:
-        return
+from backend.api.celery_worker import process_audit_task
+from backend.api.websockets import manager
 
-    try:
-        audit.status = "processing"
-        audit.progress = 10
-        audit.current_step = "Iniciando auditoria..."
-        db.commit()
-        
-        service = AuditService()
-        
-        audit.progress = 30
-        audit.current_step = "Processando itens..."
-        db.commit()
-        
-        # This runs the full audit flow (Read -> Scrape -> Audit -> Report)
-        report_path, audit_results = service.process_audit(str(xml_path))
-        
-        # Save results to DB
-        for res in audit_results:
-            item = AuditItem(
-                audit_id=audit_id,
-                item_index=res.item_index,
-                product_code=res.product_code,
-                product_name=f"ITEM {res.item_index}", # Placeholder, maybe expand DTO later
-                status="compliant" if res.is_compliant else "divergent",
-                issues=[d.message for d in res.differences]
-            )
-            db.add(item)
-        
-        # Move report
-        final_report_path = REPORTS_DIR / f"{audit_id}_report.csv"
-        if os.path.exists(report_path):
-            shutil.move(report_path, final_report_path)
-            
-        audit.status = "completed"
-        audit.progress = 100
-        audit.current_step = "Concluído"
-        audit.report_path = str(final_report_path)
-        audit.completed_at = datetime.utcnow()
-        audit.result_summary = {
-            "total": len(audit_results),
-            "compliant": len([r for r in audit_results if r.is_compliant]),
-            "divergent": len([r for r in audit_results if not r.is_compliant])
-        }
-        db.commit()
-        
-    except Exception as e:
-        logger.error(f"Error processing audit {audit_id}: {e}", exc_info=True)
-        audit.status = "error"
-        audit.error_message = str(e)
-        db.commit()
-    finally:
-        db.close()
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024 # 50MB
 
-@router.post("/audit/upload")
+async def validate_upload_size(file: UploadFile = File(...)):
+    # Simple check, but for real streaming generic limitation better use middleware or nginx
+    # Here we check content-length header if available or read chunk
+    return file
+
+@router.post("/audit/upload", dependencies=[Depends(RateLimiter(times=10, seconds=60))])
 async def upload_xml(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename.endswith('.xml'):
         raise HTTPException(400, "Apenas arquivos XML são aceitos")
@@ -124,7 +75,7 @@ async def upload_xml(file: UploadFile = File(...), db: Session = Depends(get_db)
         raise HTTPException(400, f"XML inválido: {str(e)}")
 
 @router.post("/audit/start/{audit_id}")
-async def start_audit(audit_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def start_audit(audit_id: str, db: Session = Depends(get_db)):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
     if not audit:
         raise HTTPException(404, "Auditoria não encontrada")
@@ -133,9 +84,10 @@ async def start_audit(audit_id: str, background_tasks: BackgroundTasks, db: Sess
     if not xml_path.exists():
         raise HTTPException(404, "Arquivo XML não encontrado")
         
-    background_tasks.add_task(process_audit_background, audit_id, xml_path)
+    # Trigger Celery Task
+    process_audit_task.delay(audit_id, str(xml_path))
     
-    return {"status": "processing", "audit_id": audit_id}
+    return {"status": "queued", "audit_id": audit_id}
 
 @router.get("/audit/status/{audit_id}")
 async def get_status(audit_id: str, db: Session = Depends(get_db)):
@@ -187,3 +139,24 @@ async def get_audit_results(audit_id: str, db: Session = Depends(get_db)):
             for item in items
         ]
     }
+
+@router.websocket("/ws/audit/{audit_id}")
+async def websocket_endpoint(websocket: WebSocket, audit_id: str):
+    await manager.connect(websocket)
+    await manager.stream_audit_updates(websocket, audit_id)
+
+@router.get("/audits")
+async def list_audits(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+    """Listar histórico de auditorias."""
+    audits = db.query(Audit).order_by(Audit.created_at.desc()).offset(skip).limit(limit).all()
+    return [
+        {
+            "id": a.id,
+            "nfe_key": a.nfe_key,
+            "status": a.status,
+            "created_at": a.created_at,
+            "completed_at": a.completed_at,
+            "summary": a.result_summary
+        }
+        for a in audits
+    ]

@@ -16,6 +16,7 @@ class Config:
     SEFAZ_URL: str = os.getenv("SEFAZ_URL", "http://www.sefaz.ap.gov.br/EMISSAO/memorial.php")
     SEFAZ_TIMEOUT: int = int(os.getenv("SEFAZ_TIMEOUT", "30"))
     HEADLESS_MODE: bool = os.getenv("HEADLESS_MODE", "False").lower() == "true"
+    SELENIUM_REMOTE_URL: Optional[str] = os.getenv("SELENIUM_REMOTE_URL", None)
     
     # Auditoria
     AUDIT_TOLERANCE: Decimal = Decimal(os.getenv("AUDIT_TOLERANCE", "0.05"))

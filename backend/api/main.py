@@ -1,8 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+import redis.asyncio as redis
+from fastapi_limiter import FastAPILimiter
+import os
 
 app = FastAPI(title="AuditTax AP API", version="2.0.0")
+
+@app.on_event("startup")
+async def startup():
+    redis_url = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+    r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+    await FastAPILimiter.init(r)
 
 # CORS setup for React frontend
 app.add_middleware(

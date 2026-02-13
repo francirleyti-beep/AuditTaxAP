@@ -1,7 +1,7 @@
 import logging
 import re
 from decimal import Decimal
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from bs4 import BeautifulSoup
 from src.domain.dtos import FiscalItemDTO
 
@@ -99,11 +99,11 @@ class ItemExtractor:
         h2_text = h2_text.strip().split(" ")[0]
         return int(h2_text) if h2_text.isdigit() else None
     
-    def _find_parent_row(self, h2) -> Optional:
+    def _find_parent_row(self, h2) -> Optional[Any]:
         td_item = h2.find_parent("td")
         return td_item.find_parent("tr") if td_item else None
     
-    def _get_sibling_rows(self, row1) -> Tuple[Optional, Optional, Optional]:
+    def _get_sibling_rows(self, row1) -> Tuple[Optional[Any], Optional[Any], Optional[Any]]:
         row2 = row1.find_next_sibling("tr")
         row3 = row2.find_next_sibling("tr") if row2 else None
         row4 = row3.find_next_sibling("tr") if row3 else None

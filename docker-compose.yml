@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: audit_backend
+    volumes:
+      - ./backend:/app/backend
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+      - ./reports:/app/reports
+      - ./audit_history.db:/app/audit_history.db
+    environment:
+      - SEFAZ_URL=http://www.sefaz.ap.gov.br/EMISSAO/memorial.php
+      - SELENIUM_REMOTE_URL=http://selenium-chrome:4444/wd/hub
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - selenium-chrome
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: audit_worker
+    command: celery -A backend.api.celery_worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app/backend
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+      - ./reports:/app/reports
+      - ./audit_history.db:/app/audit_history.db
+    environment:
+      - SEFAZ_URL=http://www.sefaz.ap.gov.br/EMISSAO/memorial.php
+      - SELENIUM_REMOTE_URL=http://selenium-chrome:4444/wd/hub
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - backend
+      - selenium-chrome
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: audit_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: audit_redis
+    ports:
+      - "6379:6379"
+
+  selenium-chrome:
+    image: selenium/standalone-chrome:latest
+    container_name: audit_selenium
+    shm_size: 2gb
+    ports:
+      - "4444:4444"
+    environment:
+      - SE_NODE_MAX_SESSIONS=1
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_VNC_PASSWORD=secret
+      - SE_START_VNC=true
