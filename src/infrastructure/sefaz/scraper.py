@@ -27,8 +27,8 @@ class SefazScraper:
         try:
             # Context manager garante fechamento do driver
             with SeleniumDriverManager(self.headless) as driver_mgr:
-                # Aguardar input manual (captcha)
-                driver_mgr.wait_for_manual_input()
+                # Tenta resolver captcha automaticamente
+                driver_mgr.resolve_captcha_and_submit(nfe_key)
                 
                 # Extrair HTML
                 html = driver_mgr.get_page_source()

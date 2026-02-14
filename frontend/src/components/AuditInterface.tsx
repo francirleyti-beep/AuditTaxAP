@@ -58,6 +58,7 @@ const AuditInterface: React.FC = () => {
                         socket.close();
                     } else if (data.status === 'error') {
                         setError(data.error || 'Erro no processamento');
+                        setActiveStep('upload'); // Re-enable buttons
                         socket.close();
                     }
                 } catch (e) {
