@@ -2,6 +2,8 @@ import os
 import shutil
 from pathlib import Path
 from datetime import datetime
+import decimal
+from decimal import Decimal
 from celery import Celery
 from sqlalchemy.orm import Session
 import redis
@@ -78,18 +80,65 @@ def process_audit_task(self, audit_id: str, xml_path_str: str):
         db.commit()
         publish_update("processing", 30, "Processing items...")
         
+        audit.progress = 30
+        audit.current_step = "Processing items..."
+        db.commit()
+        publish_update("processing", 30, "Processing items...")
+        
         # Run audit
-        report_path, audit_results = service.process_audit(xml_path_str)
+        # Retorna: report_path, audit_results, consistency_errors, invoice_dto
+        report_path, audit_results, consistency_errors, invoice_dto = service.process_audit(xml_path_str)
+        
+        # Helper para serializar objetos (Decimal -> float/str, Datetime -> isoformat)
+        def serialize_val(val):
+            if isinstance(val, decimal.Decimal):
+                return float(val) # JSON suporta float, frontend facilita. Se precisar precisão exata, usar str.
+            if isinstance(val, datetime):
+                return val.isoformat()
+            return val
+
+        def to_dict(obj):
+            if hasattr(obj, "__dict__"):
+                return {k: serialize_val(v) for k, v in obj.__dict__.items() if not k.startswith('_')}
+            return obj
+
+        # Save Invoice Header (excluindo itens para não duplicar muito dado)
+        header_data = {
+            "access_key": invoice_dto.access_key,
+            "number": invoice_dto.number,
+            "series": invoice_dto.series,
+            "issue_date": serialize_val(invoice_dto.issue_date),
+            "emitter_name": invoice_dto.emitter_name,
+            "emitter_cnpj": invoice_dto.emitter_cnpj,
+            "recipient_name": invoice_dto.recipient_name,
+            "recipient_doc": invoice_dto.recipient_doc,
+            "total_products": serialize_val(invoice_dto.total_products),
+            "total_invoice": serialize_val(invoice_dto.total_invoice),
+            "total_icms": serialize_val(invoice_dto.total_icms),
+            "protocol_number": invoice_dto.protocol_number
+        }
+        audit.invoice_header = header_data
+        
+        # Save Consistency Errors
+        audit.consistency_errors = [to_dict(err) for err in consistency_errors]
         
         # Save results to DB
+        # Criar mapa de itens por índice para acesso rápido
+        items_map = {item.item_index: item for item in invoice_dto.items}
+
         for res in audit_results:
+            # Encontrar detalhes do item original
+            fiscal_item = items_map.get(res.item_index)
+            details_json = to_dict(fiscal_item) if fiscal_item else {}
+            
             item = AuditItem(
                 audit_id=audit_id,
                 item_index=res.item_index,
                 product_code=res.product_code,
-                product_name=f"ITEM {res.item_index}", 
+                product_name=fiscal_item.product_description if fiscal_item else f"ITEM {res.item_index}", 
                 status="compliant" if res.is_compliant else "divergent",
-                issues=[d.message for d in res.differences]
+                issues=[d.message for d in res.differences],
+                details=details_json
             )
             db.add(item)
         
@@ -109,7 +158,8 @@ def process_audit_task(self, audit_id: str, xml_path_str: str):
         audit.result_summary = {
             "total": len(audit_results),
             "compliant": len([r for r in audit_results if r.is_compliant]),
-            "divergent": len([r for r in audit_results if not r.is_compliant])
+            "divergent": len([r for r in audit_results if not r.is_compliant]),
+            "consistency_issues": len(consistency_errors)
         }
         db.commit()
         publish_update("completed", 100, "Completed", result=audit.result_summary)

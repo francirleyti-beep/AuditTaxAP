@@ -18,7 +18,7 @@ class SefazScraper:
         self.parser = SefazHTMLParser()
         self.logger = logging.getLogger(__name__)
     
-    def fetch_memorial(self, nfe_key: str) -> List[FiscalItemDTO]:
+    def fetch_memorial(self, nfe_key: str, xml_path: str = None) -> List[FiscalItemDTO]:
         """
         Busca memorial da SEFAZ para uma NFe.
         """

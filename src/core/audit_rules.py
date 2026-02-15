@@ -85,13 +85,25 @@ class MonetaryRule(AuditRule):
         return None
 
 class SuframaBenefitRule(AuditRule):
+    """Compara o valor monetário do benefício SUFRAMA (vICMSDeson vs SEFAZ)."""
+    def __init__(self, tolerance: Decimal = Decimal("0.05")):
+        self.tolerance = tolerance
+
     def validate(self, xml_item: FiscalItemDTO, sefaz_item: FiscalItemDTO) -> Optional[AuditDifference]:
-        if xml_item.is_suframa_benefit != sefaz_item.is_suframa_benefit:
+        xml_val = xml_item.sefaz_benefit_value   # vICMSDeson do XML
+        sefaz_val = sefaz_item.sefaz_benefit_value  # R$ extraído da SEFAZ
+        
+        # Se ambos são zero, não há benefício — compatível
+        if xml_val == Decimal("0.00") and sefaz_val == Decimal("0.00"):
+            return None
+        
+        diff = abs(xml_val - sefaz_val)
+        if diff > self.tolerance:
             return AuditDifference(
-                field="SUFRAMA",
-                xml_value=str(xml_item.is_suframa_benefit),
-                sefaz_value=str(sefaz_item.is_suframa_benefit),
-                message="Benefício SUFRAMA inconsistente"
+                field="SUFRAMA_VALOR",
+                xml_value=f"R$ {xml_val:.2f}",
+                sefaz_value=f"R$ {sefaz_val:.2f}",
+                message=f"Benefício SUFRAMA divergente (diff R$ {diff:.2f})"
             )
         return None
 

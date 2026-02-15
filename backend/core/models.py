@@ -16,6 +16,10 @@ class Audit(Base):
     result_summary = Column(JSON, nullable=True)
     error_message = Column(String, nullable=True)
     report_path = Column(String, nullable=True)
+    
+    # New fields for Project Evolution
+    invoice_header = Column(JSON, nullable=True)      # Stores InvoiceDTO header data
+    consistency_errors = Column(JSON, nullable=True)  # Stores internal validation errors
 
     items = relationship("AuditItem", back_populates="audit")
 
@@ -29,5 +33,8 @@ class AuditItem(Base):
     product_name = Column(String)
     status = Column(String) # compliant, divergent
     issues = Column(JSON) # List of divergence messages
+    
+    # New field for item details (FiscalItemDTO)
+    details = Column(JSON, nullable=True)
 
     audit = relationship("Audit", back_populates="items")

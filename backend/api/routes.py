@@ -51,7 +51,10 @@ async def upload_xml(file: UploadFile = File(...), db: Session = Depends(get_db)
     
     try:
         reader = XMLReader()
-        nfe_key, items = reader.parse(str(file_path))
+        invoice_dto = reader.parse(str(file_path))
+        print(f"DEBUG: Parsed InvoiceDTO: {invoice_dto}", flush=True)
+        nfe_key = invoice_dto.access_key
+        items = invoice_dto.items
         
         new_audit = Audit(
             id=audit_id,
@@ -128,13 +131,16 @@ async def get_audit_results(audit_id: str, db: Session = Depends(get_db)):
     return {
         "audit_id": audit.id,
         "summary": audit.result_summary,
+        "invoice_header": audit.invoice_header,          # [NEW]
+        "consistency_errors": audit.consistency_errors,  # [NEW]
         "items": [
             {
                 "item_index": item.item_index,
                 "product_code": item.product_code,
                 "product_name": item.product_name,
                 "status": item.status,
-                "issues": item.issues
+                "issues": item.issues,
+                "details": item.details                  # [NEW]
             }
             for item in items
         ]

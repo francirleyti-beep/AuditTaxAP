@@ -3,9 +3,12 @@ import { Upload, FileText, CheckCircle, AlertTriangle, Play, Download, RefreshCw
 import { uploadXml, startAudit, getAuditResults, getDownloadUrl, getAudits, AuditSummary } from '../api';
 import ResultsTable from './ResultsTable';
 import { DashboardCharts } from './DashboardCharts';
+import InvoiceHeader from './InvoiceHeader';
+import ConsistencyAlert from './ConsistencyAlert';
 
 const AuditInterface: React.FC = () => {
-    // State
+    // ... existing state ...
+
     const [activeStep, setActiveStep] = useState<'upload' | 'processing' | 'results' | 'history'>('upload');
     const [file, setFile] = useState<File | null>(null);
     const [dragActive, setDragActive] = useState(false);
@@ -327,6 +330,16 @@ const AuditInterface: React.FC = () => {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Invoice Header */}
+                            {auditResult.invoice_header && (
+                                <InvoiceHeader header={auditResult.invoice_header} />
+                            )}
+
+                            {/* Consistency Alerts */}
+                            {auditResult.consistency_errors && (
+                                <ConsistencyAlert errors={auditResult.consistency_errors} />
+                            )}
 
                             {/* Dashboard Charts */}
                             {auditResult.result && <DashboardCharts results={auditResult.result} />}

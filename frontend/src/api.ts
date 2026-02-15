@@ -33,12 +33,53 @@ export const getDownloadUrl = (auditId: string) => {
     return `${API_URL}/audit/download/${auditId}`;
 };
 
+export interface InvoiceHeader {
+    access_key: string;
+    number: number;
+    series: number;
+    issue_date: string;
+    emitter_name: string;
+    emitter_cnpj: string;
+    recipient_name: string;
+    recipient_doc: string;
+    total_products: number;
+    total_invoice: number;
+    total_icms: number;
+    protocol_number: string;
+}
+
+export interface ConsistencyError {
+    field: string;
+    xml_value: string;
+    sefaz_value: string;
+    message: string;
+}
+
+export interface AuditItemDetails {
+    product_description: string;
+    quantity: number;
+    unit_price: number;
+    ncm: string;
+    cest: string;
+    cfop: string;
+    cst: string;
+    amount_total: number;
+    tax_base: number;
+    tax_rate: number;
+    tax_value: number;
+    mva_percent: number;
+    sefaz_tax_value: number;
+    sefaz_mva_percent: number;
+    sefaz_benefit_value: number;
+}
+
 export interface AuditItem {
     item_index: number;
     product_code: string;
     product_name: string;
     status: 'compliant' | 'divergent';
     issues: string[];
+    details?: AuditItemDetails; // [NEW]
 }
 
 export interface AuditResultsResponse {
@@ -47,7 +88,10 @@ export interface AuditResultsResponse {
         total: number;
         compliant: number;
         divergent: number;
+        consistency_issues?: number; // [NEW]
     };
+    invoice_header?: InvoiceHeader;       // [NEW]
+    consistency_errors?: ConsistencyError[]; // [NEW]
     items: AuditItem[];
 }
 

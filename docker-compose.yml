@@ -11,7 +11,7 @@ services:
       - ./src:/app/src
       - ./uploads:/app/uploads
       - ./reports:/app/reports
-      - ./audit_history.db:/app/audit_history.db
+      - ./audit_data:/app/audit_data
     environment:
       - SEFAZ_URL=http://www.sefaz.ap.gov.br/EMISSAO/memorial.php
       - SELENIUM_REMOTE_URL=http://selenium-chrome:4444/wd/hub
@@ -32,9 +32,10 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./src:/app/src
+      - ./tests:/app/tests
       - ./uploads:/app/uploads
       - ./reports:/app/reports
-      - ./audit_history.db:/app/audit_history.db
+      - ./audit_data:/app/audit_data
     environment:
       - SEFAZ_URL=http://www.sefaz.ap.gov.br/EMISSAO/memorial.php
       - SELENIUM_REMOTE_URL=http://selenium-chrome:4444/wd/hub

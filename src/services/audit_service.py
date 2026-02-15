@@ -1,51 +1,60 @@
 import logging
 import os
-from typing import List
-from src.domain.dtos import AuditResultDTO, FiscalItemDTO
+from typing import List, Tuple
+from src.domain.dtos import AuditResultDTO, FiscalItemDTO, AuditDifference, InvoiceDTO
 from src.domain.exceptions import AuditException
 from src.infrastructure.xml_reader import XMLReader
 from src.infrastructure.sefaz.scraper import SefazScraper
 from src.core.auditor import AuditEngine
+from src.core.invoice_validator import InvoiceValidator
 from src.presentation.report_generator import ReportGenerator
 
 class AuditService:
     """
     Serviço principal de auditoria.
-    Orquestra: XML -> Scraper -> Auditoria -> Relatório.
+    Orquestra: XML -> Scraper -> Auditoria -> Validação -> Relatório.
     """
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.xml_reader = XMLReader()
         self.scraper = SefazScraper()
+        self.invoice_validator = InvoiceValidator()
         self.auditor = AuditEngine()
         self.reporter = ReportGenerator()
 
-    def process_audit(self, xml_path: str, nfe_key: str = "") -> tuple[str, List[AuditResultDTO]]:
+    def process_audit(self, xml_path: str, nfe_key: str = "") -> Tuple[str, List[AuditResultDTO], List[AuditDifference], InvoiceDTO]:
         """
         Executa fluxo completo de auditoria.
-        Retorna (caminho_relatorio, lista_resultados).
+        Retorna (caminho_relatorio, lista_resultados_itens, lista_erros_consistencia).
         """
         self.logger.info(f"Iniciando auditoria para arquivo: {xml_path}")
         
-        # 1. Ler XML
+        # 1. Ler XML (Agora retorna InvoiceDTO)
         try:
-            detected_key, xml_items = self.xml_reader.parse(xml_path)
+            invoice_dto = self.xml_reader.parse(xml_path)
+            
             if not nfe_key:
-                nfe_key = detected_key
+                nfe_key = invoice_dto.access_key
             
             if not nfe_key:
                 raise AuditException("Chave NFe não encontrada no XML e não fornecida.")
                 
-            self.logger.info(f"XML processado. Itens: {len(xml_items)}. Chave: {nfe_key}")
+            self.logger.info(f"XML processado. Invoice Key: {nfe_key}. Itens: {len(invoice_dto.items)}")
+            self.logger.info(f"XML processado. Invoice Key: {invoice_dto.access_key}. Itens: {len(invoice_dto.items)}")
             
         except Exception as e:
             self.logger.error(f"Erro na leitura do XML: {e}")
             raise
 
-        # 2. Buscar SEFAZ
+        # 2. Validar Consistência Interna
+        consistency_errors = self.invoice_validator.validate(invoice_dto)
+        if consistency_errors:
+            self.logger.warning(f"Encontrados {len(consistency_errors)} erros de consistência interna no XML.")
+
+        # 3. Buscar SEFAZ
         try:
-            sefaz_items = self.scraper.fetch_memorial(nfe_key)
+            sefaz_items = self.scraper.fetch_memorial(invoice_dto.access_key, xml_path) # Passando xml_path como fallback/contexto se necessário
             if not sefaz_items:
                 raise AuditException("Nenhum item retornado da SEFAZ.")
                 
@@ -53,19 +62,24 @@ class AuditService:
             
         except Exception as e:
             self.logger.error(f"Erro ao buscar na SEFAZ: {e}")
-            raise
+            raise AuditException(f"Falha na comunicação com SEFAZ: {str(e)}")
 
-        # 3. Auditar
-        audit_results = self._perform_audit(xml_items, sefaz_items)
-        
-        # 4. Gerar Relatório
+        # 4. Auditar (Cruzamento XML x SEFAZ)
         try:
-            report_path = self.reporter.generate_csv(audit_results)
+            audit_results = self._perform_audit(invoice_dto.items, sefaz_items)
+        except Exception as e:
+             self.logger.error(f"Erro na auditoria interna: {e}")
+             raise AuditException(f"Falha no processamento da auditoria: {str(e)}")
+        
+        # 5. Gerar Relatório
+        try:
+            report_path = self.reporter.generate_csv(audit_results, consistency_errors)
             self.logger.info(f"Relatório gerado em: {report_path}")
-            return report_path, audit_results
+            return report_path, audit_results, consistency_errors, invoice_dto
         except Exception as e:
             self.logger.error(f"Erro ao gerar relatório: {e}")
-            raise
+            # Em caso de erro no relatório, retorna vazio mas com os dados processados importando para a API
+            return "", audit_results, consistency_errors, invoice_dto
 
     def _perform_audit(self, xml_items: List[FiscalItemDTO], sefaz_items: List[FiscalItemDTO]) -> List[AuditResultDTO]:
         """Executa auditoria item a item."""

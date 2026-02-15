@@ -32,7 +32,9 @@ def main():
     # 3. Executar Serviço
     try:
         service = AuditService()
-        report_path = service.process_audit(xml_path, nfe_key)
+        # Retorna: report_path, audit_results, consistency_errors, invoice_dto
+        result = service.process_audit(xml_path, nfe_key)
+        report_path = result[0]
         
         print("\n=== SUCESSO! ===")
         print(f"Relatório gerado com sucesso: {report_path}")
