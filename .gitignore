@@ -1,87 +1,40 @@
-# --- Python ---
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual Environment
-venv/
-env/
-ENV/
 .venv/
-env.bak/
-venv.bak/
+env/
+venv/
+ENV/
 
-# Testing & Coverage
-.coverage
-htmlcov/
-.tox/
-.nox/
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-
-# --- Node.js / React (Frontend) ---
-frontend/node_modules/
-frontend/build/
-frontend/dist/
-frontend/.pnp
-frontend/.pnp.js
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-
-# --- Environment Variables ---
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# --- IDEs & Editors ---
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-
-# --- Project Specific ---
-# Uploads & Reports (Local storage)
+# Logs & Data
+logs/
 uploads/
 reports/
-
-# Database (SQLite)
+audit_data/
 *.db
 *.sqlite3
-audit_history.db
+
+# Environment
+.env
 
 # Docker
-docker-compose.override.yml
+.dockerignore
 
-# Checkpoints & Logs
-*.log
-logs/
-celerybeat-schedule
-celerybeat.pid
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 
-# OS Generated
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
 Thumbs.db
-Desktop.ini

@@ -1,19 +1,15 @@
-class AuditTaxException(Exception):
-    """Exceção base do sistema."""
+class AuditException(Exception):
+    """Base exception for audit related errors."""
     pass
 
-class XMLParseException(AuditTaxException):
-    """Erro ao parsear XML."""
+class SefazScraperException(AuditException):
+    """Raised when there is an error scraping data from SEFAZ."""
     pass
 
-class SefazScraperException(AuditTaxException):
-    """Erro no scraping da SEFAZ."""
+class XMLReaderException(AuditException):
+    """Raised when there is an error parsing the XML file."""
     pass
 
-class AuditException(AuditTaxException):
-    """Erro na auditoria."""
-    pass
-
-class ReportGenerationException(AuditTaxException):
-    """Erro na geração de relatório."""
+class RuleViolationException(AuditException):
+    """Raised when a specific audit rule is violated."""
     pass
