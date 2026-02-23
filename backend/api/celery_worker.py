@@ -177,7 +177,11 @@ def process_audit_task(self, audit_id: str, xml_path_str: str):
             "consistency_issues": len(consistency_errors)
         }
         db.commit()
-        publish_update("completed", 100, "Completed", result=audit.result_summary)
+        publish_update("completed", 100, "Completed", result={
+            "summary": audit.result_summary,
+            "invoice_header": audit.invoice_header,
+            "consistency_errors": audit.consistency_errors
+        })
         return "Success"
         
     except Exception as e:

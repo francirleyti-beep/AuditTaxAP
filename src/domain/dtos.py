@@ -110,4 +110,5 @@ class AuditResultDTO:
     product_code: str
     is_compliant: bool
     differences: list[AuditDifference]
+    xml_item: Optional[FiscalItemDTO] = None    # [NEW] Store the xml item data
     sefaz_item: Optional[FiscalItemDTO] = None  # [NEW] Store the sefaz item data

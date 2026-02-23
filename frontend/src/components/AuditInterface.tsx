@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Play, Download, RefreshCw, X, Moon, Sun, History, BarChart2, Trash2, RotateCcw, Eye } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Play, Download, RefreshCw, X, Moon, Sun, History, BarChart2, Trash2, RotateCcw, Eye, Search, ChevronUp } from 'lucide-react';
 import { uploadXml, startAudit, getAuditResults, getDownloadUrl, getAudits, AuditSummary, deleteAudit, retryAudit } from '../api';
 import ResultsTable from './ResultsTable';
 import { DashboardCharts } from './DashboardCharts';
@@ -7,9 +7,8 @@ import InvoiceHeader from './InvoiceHeader';
 import ConsistencyAlert from './ConsistencyAlert';
 
 const AuditInterface: React.FC = () => {
-    // ... existing state ...
-
     const [activeStep, setActiveStep] = useState<'upload' | 'processing' | 'results' | 'history'>('upload');
+    const [showScrollTop, setShowScrollTop] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [dragActive, setDragActive] = useState(false);
     const [auditId, setAuditId] = useState<string | null>(null);
@@ -20,10 +19,21 @@ const AuditInterface: React.FC = () => {
     const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
     const [history, setHistory] = useState<AuditSummary[]>([]);
 
-    // WebSocket ref
     const ws = useRef<WebSocket | null>(null);
 
-    // Dark Mode Effect
+    // Scroll listener for "Back to Top" button
+    useEffect(() => {
+        const handleScroll = () => {
+            setShowScrollTop(window.scrollY > 400);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     useEffect(() => {
         if (darkMode) {
             document.documentElement.classList.add('dark');
@@ -34,12 +44,9 @@ const AuditInterface: React.FC = () => {
         }
     }, [darkMode]);
 
-    // WebSocket Connection
     useEffect(() => {
         if (activeStep === 'processing' && auditId) {
-            // Close existing connection if any
             if (ws.current) ws.current.close();
-
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = window.location.hostname === 'localhost'
                 ? `ws://localhost:8000/api/ws/audit/${auditId}`
@@ -47,10 +54,6 @@ const AuditInterface: React.FC = () => {
             
             const socket = new WebSocket(wsUrl);
             ws.current = socket;
-
-            socket.onopen = () => {
-                console.log('Connected to WebSocket');
-            };
 
             socket.onmessage = async (event) => {
                 try {
@@ -60,73 +63,34 @@ const AuditInterface: React.FC = () => {
 
                     if (data.status === 'completed') {
                         const results = await getAuditResults(auditId);
-                        setAuditResult({ ...data, result: results });
+                        const finalHeader = results.invoice_header || (data.result && data.result.invoice_header);
+                        const finalConsistency = results.consistency_errors || (data.result && data.result.consistency_errors);
+                        setAuditResult({ ...data, result: results, invoice_header: finalHeader, consistency_errors: finalConsistency });
                         setActiveStep('results');
                         socket.close();
                     } else if (data.status === 'error') {
                         setError(data.error || 'Erro no processamento');
-                        setActiveStep('upload'); // Re-enable buttons
+                        setActiveStep('upload');
                         socket.close();
                     }
                 } catch (e) {
                     console.error("Error parsing WS message", e);
                 }
             };
-
-            socket.onerror = (err) => {
-                console.error("WebSocket error", err);
-                // Fallback or retry logic could go here
-            };
-
-            return () => {
-                socket.close();
-            };
+            return () => socket.close();
         }
     }, [activeStep, auditId]);
 
-    // Fetch History
     const fetchHistory = async () => {
         try {
             const data = await getAudits();
             setHistory(data);
-        } catch (e) {
-            console.error("Failed to fetch history", e);
-        }
+        } catch (e) { console.error(e); }
     };
 
     useEffect(() => {
-        if (activeStep === 'history') {
-            fetchHistory();
-        }
+        if (activeStep === 'history') fetchHistory();
     }, [activeStep]);
-
-
-    // Handlers
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            validateAndSetFile(e.dataTransfer.files[0]);
-        }
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        e.preventDefault();
-        if (e.target.files && e.target.files[0]) {
-            validateAndSetFile(e.target.files[0]);
-        }
-    };
 
     const validateAndSetFile = (file: File) => {
         if (file.type === "text/xml" || file.name.endsWith(".xml")) {
@@ -139,30 +103,17 @@ const AuditInterface: React.FC = () => {
 
     const handleUploadAndStart = async () => {
         if (!file) return;
-
         try {
             setActiveStep('processing');
             setProgress(0);
             setStatusMessage("Iniciando...");
-
             const uploadResp = await uploadXml(file);
             setAuditId(uploadResp.audit_id);
             await startAudit(uploadResp.audit_id);
-
         } catch (err: any) {
             setError(err.response?.data?.detail || "Erro ao iniciar auditoria");
             setActiveStep('upload');
         }
-    };
-
-    const handleReset = () => {
-        setFile(null);
-        setAuditId(null);
-        setProgress(0);
-        setStatusMessage('');
-        setAuditResult(null);
-        setError(null);
-        setActiveStep('upload');
     };
 
     const loadAuditFromHistory = async (id: string) => {
@@ -171,130 +122,96 @@ const AuditInterface: React.FC = () => {
             const results = await getAuditResults(id);
             setAuditResult({ result: results, invoice_header: results.invoice_header, consistency_errors: results.consistency_errors });
             setActiveStep('results');
-        } catch (e) {
-            setError("Erro ao carregar auditoria.");
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!window.confirm("Deseja realmente excluir esta auditoria permanentemente?")) return;
-        try {
-            await deleteAudit(id);
-            fetchHistory();
-        } catch (e) {
-            alert("Erro ao excluir auditoria.");
-        }
-    };
-
-    const handleRetry = async (id: string) => {
-        try {
-            await retryAudit(id);
-            setAuditId(id);
-            setActiveStep('processing');
-            setProgress(0);
-            setStatusMessage("Reiniciando...");
-        } catch (e: any) {
-            alert(e.response?.data?.detail || "Erro ao reiniciar auditoria.");
-        }
+        } catch (e) { setError("Erro ao carregar auditoria."); }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
-            <div className="max-w-7xl mx-auto p-4 md:p-6 font-sans text-slate-800 dark:text-slate-200">
-                <header className="mb-6 md:mb-10 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500 overflow-x-hidden">
+            <div className="max-w-7xl mx-auto p-4 md:p-8">
+                <header className="mb-8 md:mb-12 flex flex-col sm:flex-row justify-between items-center gap-6">
                     <div className="text-center sm:text-left">
-                        <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-                            AuditTax AP
-                        </h1>
-                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">Sistema de Auditoria Fiscal Automatizada</p>
+                        <div className="flex items-center justify-center sm:justify-start gap-3 mb-1">
+                            <div className="p-2 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-600/20">
+                                <BarChart2 size={24} className="text-white" />
+                            </div>
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                                AuditTax<span className="text-indigo-600 dark:text-indigo-400">AP</span>
+                            </h1>
+                        </div>
+                        <p className="text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Sistema Profissional de Auditoria Fiscal</p>
                     </div>
 
-                    <div className="flex items-center space-x-2 md:space-x-4 w-full sm:w-auto justify-center">
-                        {/* Steps / Tabs */}
-                        <div className="flex bg-white dark:bg-slate-800 rounded-full p-1 shadow-sm border border-slate-200 dark:border-slate-700 flex-1 sm:flex-none justify-center">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <nav className="flex bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-sm border border-slate-200 dark:border-slate-800 flex-1 sm:flex-none">
                             <button
                                 onClick={() => activeStep !== 'processing' && setActiveStep('upload')}
-                                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-colors ${activeStep === 'upload' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${activeStep === 'upload' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                             >
-                                <Upload size={14} className="inline mr-1 md:mr-2" /> Novo
+                                <Upload size={14} /> Novo
                             </button>
                             <button
                                 onClick={() => activeStep !== 'processing' && setActiveStep('history')}
-                                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-colors ${activeStep === 'history' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${activeStep === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                             >
-                                <History size={14} className="inline mr-1 md:mr-2" /> Histórico
+                                <History size={14} /> Histórico
                             </button>
-                        </div>
+                        </nav>
 
-                        {/* Dark Mode Toggle */}
                         <button
                             onClick={() => setDarkMode(!darkMode)}
-                            className="p-2 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
                         >
-                            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
                         </button>
                     </div>
                 </header>
 
-                <main className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl min-h-[500px] flex flex-col relative overflow-hidden border border-slate-100 dark:border-slate-700 transition-colors duration-200">
+                <main className="relative">
                     {error && (
-                        <div className="absolute top-0 left-0 right-0 bg-red-50 dark:bg-red-900/30 p-4 border-b border-red-100 dark:border-red-900/50 flex items-center justify-between text-red-700 dark:text-red-300 z-10">
-                            <div className="flex items-center space-x-2">
-                                <AlertTriangle size={20} />
-                                <span>{error}</span>
+                        <div className="mb-6 bg-red-50 dark:bg-red-950/30 p-4 rounded-2xl border border-red-100 dark:border-red-900/50 flex items-center justify-between text-red-700 dark:text-red-300 animate-in slide-in-from-top-4">
+                            <div className="flex items-center space-x-3">
+                                <AlertTriangle size={20} className="shrink-0" />
+                                <span className="text-sm font-bold">{error}</span>
                             </div>
-                            <button onClick={() => setError(null)}><X size={18} /></button>
+                            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg"><X size={18} /></button>
                         </div>
                     )}
 
                     {/* UPLOAD VIEW */}
                     {activeStep === 'upload' && (
-                        <div className="flex-1 flex flex-col items-center justify-center p-12 animate-in fade-in duration-500">
+                        <div className="flex flex-col items-center justify-center p-4 md:p-20 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl transition-all duration-500">
                             <div
-                                className={`w-full max-w-2xl border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center transition-all duration-200 ${dragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-                                onDragEnter={handleDrag}
-                                onDragLeave={handleDrag}
-                                onDragOver={handleDrag}
-                                onDrop={handleDrop}
+                                className={`w-full max-w-2xl border-2 border-dashed rounded-[2rem] p-12 md:p-20 flex flex-col items-center justify-center text-center transition-all duration-300 ${dragActive ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/10 scale-105 shadow-2xl shadow-indigo-600/10' : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600'}`}
+                                onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                                onDragLeave={() => setDragActive(false)}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => { e.preventDefault(); setDragActive(false); if(e.dataTransfer.files[0]) validateAndSetFile(e.dataTransfer.files[0]); }}
                             >
-                                <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400">
-                                    <Upload size={32} />
+                                <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-950/50 rounded-3xl flex items-center justify-center mb-8 text-indigo-600 dark:text-indigo-400 shadow-inner">
+                                    <Upload size={40} />
                                 </div>
-                                <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-white">Arraste seu arquivo XML aqui</h3>
-                                <p className="text-slate-500 dark:text-slate-400 mb-8">ou clique para selecionar do computador</p>
+                                <h3 className="text-2xl font-black mb-3 text-slate-900 dark:text-white uppercase tracking-tight">Deposite seu XML</h3>
+                                <p className="text-slate-500 dark:text-slate-400 mb-10 text-sm font-medium">Arraste o arquivo aqui ou clique para buscar</p>
 
-                                <input
-                                    id="file-upload"
-                                    type="file"
-                                    className="hidden"
-                                    accept=".xml,text/xml"
-                                    onChange={handleChange}
-                                />
-                                <label
-                                    htmlFor="file-upload"
-                                    className="px-8 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 shadow-sm rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer transition-colors"
-                                >
-                                    Selecionar Arquivo
+                                <input id="file-upload" type="file" className="hidden" accept=".xml" onChange={(e) => e.target.files?.[0] && validateAndSetFile(e.target.files[0])} />
+                                <label htmlFor="file-upload" className="px-10 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg rounded-2xl font-black uppercase text-xs tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-all active:scale-95">
+                                    Explorar Arquivos
                                 </label>
                             </div>
 
                             {file && (
-                                <div className="mt-8 w-full max-w-2xl bg-slate-50 dark:bg-slate-700/50 rounded-2xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-600 animate-in slide-in-from-bottom-4">
-                                    <div className="flex items-center space-x-4 w-full sm:w-auto">
-                                        <div className="p-3 bg-white dark:bg-slate-600 rounded-xl border border-slate-100 dark:border-slate-500 shadow-sm text-blue-600 dark:text-blue-400 shrink-0">
-                                            <FileText size={28} />
+                                <div className="mt-12 w-full max-w-2xl bg-indigo-600 dark:bg-indigo-600 rounded-3xl p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl shadow-indigo-600/30 animate-in zoom-in-95 duration-300">
+                                    <div className="flex items-center space-x-5 min-w-0">
+                                        <div className="p-4 bg-white/10 rounded-2xl border border-white/20 text-white shrink-0 backdrop-blur-sm">
+                                            <FileText size={32} />
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-semibold text-slate-900 dark:text-white truncate" title={file.name}>{file.name}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{(file.size / 1024).toFixed(2)} KB</p>
+                                        <div className="min-w-0 text-white">
+                                            <p className="font-black uppercase tracking-tight truncate text-lg" title={file.name}>{file.name}</p>
+                                            <p className="text-xs font-bold opacity-70 tracking-widest uppercase">{(file.size / 1024).toFixed(1)} KB • XML Fiscal</p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={handleUploadAndStart}
-                                        className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl font-bold transition-all flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30"
-                                    >
-                                        <Play size={20} fill="currentColor" />
-                                        <span>Iniciar Auditoria</span>
+                                    <button onClick={handleUploadAndStart} className="w-full sm:w-auto px-10 py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase text-xs tracking-[0.2em] transition-all hover:bg-slate-50 active:scale-95 shadow-xl">
+                                        Auditar Agora
                                     </button>
                                 </div>
                             )}
@@ -303,172 +220,106 @@ const AuditInterface: React.FC = () => {
 
                     {/* PROCESSING VIEW */}
                     {activeStep === 'processing' && (
-                        <div className="flex-1 flex flex-col items-center justify-center p-12">
+                        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-20 flex flex-col items-center justify-center min-h-[500px]">
                             <div className="w-full max-w-md text-center">
-                                <div className="relative w-32 h-32 mx-auto mb-8">
-                                    <div className="absolute inset-0 border-4 border-slate-100 dark:border-slate-700 rounded-full"></div>
-                                    <div
-                                        className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"
-                                    ></div>
-                                    <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-700 dark:text-slate-200">
+                                <div className="relative w-40 h-40 mx-auto mb-10">
+                                    <div className="absolute inset-0 border-[6px] border-slate-100 dark:border-slate-800 rounded-full"></div>
+                                    <div className="absolute inset-0 border-[6px] border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+                                    <div className="absolute inset-0 flex items-center justify-center text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
                                         {Math.round(progress)}%
                                     </div>
                                 </div>
-
-                                <h3 className="text-xl font-semibold mb-2 text-slate-900 dark:text-white">Processando Auditoria...</h3>
-                                <p className="text-slate-500 dark:text-slate-400 mb-8">{statusMessage}</p>
-
-                                <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 mb-2 overflow-hidden">
-                                    <div
-                                        className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-                                        style={{ width: `${progress}%` }}
-                                    ></div>
+                                <h3 className="text-2xl font-black mb-2 text-slate-900 dark:text-white uppercase tracking-tight italic">Analisando Dados...</h3>
+                                <p className="text-slate-500 dark:text-slate-400 mb-10 text-sm font-bold uppercase tracking-widest">{statusMessage}</p>
+                                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 mb-4 overflow-hidden shadow-inner">
+                                    <div className="bg-indigo-600 h-full rounded-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(79,70,229,0.5)]" style={{ width: `${progress}%` }}></div>
                                 </div>
-                                <p className="text-xs text-slate-400">Conectado via WebSocket</p>
                             </div>
                         </div>
                     )}
 
                     {/* RESULTS VIEW */}
                     {activeStep === 'results' && auditResult && (
-                        <div className="flex-1 p-4 md:p-8 animate-in fade-in flex flex-col h-full overflow-y-auto">
-                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
-                                <div className="w-full sm:w-auto">
-                                    <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-2">Resultados da Auditoria</h2>
-                                    <p className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                        <span className="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-[10px] md:text-xs break-all">{auditId}</span>
-                                    </p>
-                                </div>
-                                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                                    <button onClick={handleReset} className="flex-1 sm:flex-none px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 transition-colors border border-slate-200 dark:border-slate-600">
-                                        <RefreshCw size={16} />
-                                        <span>Novo</span>
-                                    </button>
-                                    {auditId && (
-                                        <a
-                                            href={getDownloadUrl(auditId)}
-                                            download
-                                            className="flex-1 sm:flex-none px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-green-600/20 flex items-center justify-center space-x-2 transition-colors"
-                                        >
-                                            <Download size={16} />
-                                            <span>Exportar</span>
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-
+                        <div className="space-y-6 animate-in fade-in duration-700">
                             {/* Invoice Header */}
-                            {auditResult.invoice_header && (
-                                <InvoiceHeader header={auditResult.invoice_header} />
-                            )}
-
+                            {auditResult.invoice_header && <InvoiceHeader header={auditResult.invoice_header} />}
+                            
                             {/* Consistency Alerts */}
-                            {auditResult.consistency_errors && (
+                            {auditResult.consistency_errors && auditResult.consistency_errors.length > 0 && (
                                 <ConsistencyAlert errors={auditResult.consistency_errors} />
                             )}
 
-                            {/* Dashboard Charts */}
+                            {/* Charts Dashboard */}
                             {auditResult.result && <DashboardCharts results={auditResult.result} />}
 
-                            {/* Interactive Table */}
-                            <div className="flex-1 min-h-0">
-                                {auditResult.result ? (
-                                    <ResultsTable 
-                                        results={auditResult.result} 
-                                        onUpdate={() => loadAuditFromHistory(auditId!)}
-                                    />
-                                ) : (
-                                    <div className="text-center py-12 text-slate-400">
-                                        Carregando detalhes...
-                                    </div>
-                                )}
-                            </div>
+                            {/* Main Table */}
+                            {auditResult.result && (
+                                <ResultsTable 
+                                    results={auditResult.result} 
+                                    onUpdate={() => loadAuditFromHistory(auditId!)} 
+                                />
+                            )}
                         </div>
                     )}
 
                     {/* HISTORY VIEW */}
                     {activeStep === 'history' && (
-                        <div className="flex-1 p-8 animate-in fade-in flex flex-col">
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Histórico de Auditorias</h2>
-
-                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                                        <thead className="bg-slate-50 dark:bg-slate-700">
-                                            <tr>
-                                                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">ID / NFe</th>
-                                                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Status</th>
-                                                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider hidden sm:table-cell">Data</th>
-                                                <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider hidden md:table-cell">Resumo</th>
-                                                <th className="px-4 md:px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                                            {history.map((audit) => (
-                                                <tr key={audit.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                                    <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[120px] md:max-w-xs" title={audit.nfe_key}>
-                                                            {audit.nfe_key ? audit.nfe_key : audit.id}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className={`px-2 inline-flex text-[10px] md:text-xs leading-5 font-semibold rounded-full 
-                                                                ${audit.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                                                    audit.status === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                                                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`}>
-                                                                {audit.status}
-                                                            </span>
-                                                            {audit.is_fully_reviewed && (
-                                                                <span className="px-2 inline-flex text-[9px] md:text-[10px] leading-4 font-bold bg-blue-100 text-blue-700 rounded-full w-fit">
-                                                                    CONFERIDA
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400 hidden sm:table-cell">
-                                                        {new Date(audit.created_at).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400 hidden md:table-cell">
-                                                        {audit.summary ? (
-                                                            <span>{audit.summary.compliant} OK / {audit.summary.divergent} Div</span>
-                                                        ) : '-'}
-                                                    </td>
-                                                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                        <div className="flex justify-end gap-1 md:gap-2">
-                                                            <button
-                                                                onClick={() => loadAuditFromHistory(audit.id)}
-                                                                className="p-1.5 md:p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                                                title="Visualizar"
-                                                            >
-                                                                <Eye className="w-4 h-4 md:w-5 md:h-5" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleRetry(audit.id)}
-                                                                className="p-1.5 md:p-2 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
-                                                                title="Re-auditar"
-                                                            >
-                                                                <RotateCcw className="w-4 h-4 md:w-5 md:h-5" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(audit.id)}
-                                                                className="p-1.5 md:p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                                                title="Excluir"
-                                                            >
-                                                                <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-8 shadow-xl min-h-[600px] animate-in slide-in-from-right-8 duration-500">
+                            <div className="flex items-center justify-between mb-8 px-4">
+                                <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Histórico Fiscal</h2>
+                                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400">
+                                    <History size={20} />
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4">
+                                {history.map((audit) => (
+                                    <div key={audit.id} className="group bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 transition-all flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none">
+                                        <div className="flex items-center gap-6 w-full md:w-auto">
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${audit.status === 'completed' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600'}`}>
+                                                <FileText size={24} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Chave da Nota</p>
+                                                <p className="font-bold text-slate-900 dark:text-white truncate max-w-xs md:max-w-md" title={audit.nfe_key}>{audit.nfe_key || audit.id}</p>
+                                                <div className="flex gap-4 mt-2">
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(audit.created_at).toLocaleDateString()}</span>
+                                                    {audit.summary && (
+                                                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">{audit.summary.compliant} OK • {audit.summary.divergent} Divergentes</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                                            <button onClick={() => loadAuditFromHistory(audit.id)} className="flex-1 md:flex-none px-6 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm">
+                                                Visualizar
+                                            </button>
+                                            <button onClick={() => retryAudit(audit.id)} className="p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-600 transition-all shadow-sm">
+                                                <RotateCcw size={18} />
+                                            </button>
+                                            <button onClick={() => deleteAudit(audit.id)} className="p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl text-red-500 hover:bg-red-50 dark:hover:bg-slate-600 transition-all shadow-sm">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
                 </main>
             </div>
+
+            {/* Floating Back to Top Button */}
+            <button
+                onClick={scrollToTop}
+                className={`fixed bottom-8 right-8 p-4 rounded-2xl bg-indigo-600/80 dark:bg-indigo-500/80 backdrop-blur-md text-white shadow-2xl transition-all duration-300 transform z-50 hover:bg-indigo-700 active:scale-90 border border-white/20 ${
+                    showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
+                }`}
+                title="Voltar ao Topo"
+            >
+                <ChevronUp size={24} />
+            </button>
         </div>
     );
 };

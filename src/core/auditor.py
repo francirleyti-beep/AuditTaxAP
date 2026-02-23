@@ -40,5 +40,6 @@ class AuditEngine:
             product_code=xml_item.product_code,
             is_compliant=is_compliant,
             differences=differences,
+            xml_item=xml_item,    # [NEW]
             sefaz_item=sefaz_item # [NEW]
         )

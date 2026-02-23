@@ -1,0 +1,25 @@
+﻿Tipo,Item,Produto,Status,Campo Divergente,Valor XML,Valor SEFAZ/Calculado,Mensagem
+AUDITORIA,1,000205,DIVERGENTE,CFOP,6110,0000,CFOP divergente
+AUDITORIA,1,000205,DIVERGENTE,BASE_CALCULO,Base ICMS Próprio: 0.00,SEFAZ: 5534.61,Diferença de Base de Cálculo (Base ICMS Próprio) > 0.05
+AUDITORIA,1,000205,DIVERGENTE,VALOR_IMPOSTO,ICMS Próprio (Origem): 0.00,SEFAZ: 455.25,"Item sem destaque de ICMS Próprio (Origem) no XML, mas com cobrança identificada pela SEFAZ (R$ 455.25)"
+AUDITORIA,1,000205,DIVERGENTE,MVA %,0.00%,39.51%,Alíquota MVA divergente (ou aplicada pela SEFAZ)
+AUDITORIA,2,021348,DIVERGENTE,CFOP,6110,0000,CFOP divergente
+AUDITORIA,2,021348,DIVERGENTE,BASE_CALCULO,Base ICMS Próprio: 0.00,SEFAZ: 3557.10,Diferença de Base de Cálculo (Base ICMS Próprio) > 0.05
+AUDITORIA,2,021348,DIVERGENTE,VALOR_IMPOSTO,ICMS Próprio (Origem): 0.00,SEFAZ: 292.59,"Item sem destaque de ICMS Próprio (Origem) no XML, mas com cobrança identificada pela SEFAZ (R$ 292.59)"
+AUDITORIA,2,021348,DIVERGENTE,MVA %,0.00%,39.51%,Alíquota MVA divergente (ou aplicada pela SEFAZ)
+AUDITORIA,3,109879,DIVERGENTE,CFOP,6110,0000,CFOP divergente
+AUDITORIA,3,109879,DIVERGENTE,BASE_CALCULO,Base ICMS Próprio: 0.00,SEFAZ: 449.38,Diferença de Base de Cálculo (Base ICMS Próprio) > 0.05
+AUDITORIA,3,109879,DIVERGENTE,VALOR_IMPOSTO,ICMS Próprio (Origem): 0.00,SEFAZ: 36.96,"Item sem destaque de ICMS Próprio (Origem) no XML, mas com cobrança identificada pela SEFAZ (R$ 36.96)"
+AUDITORIA,3,109879,DIVERGENTE,MVA %,0.00%,39.51%,Alíquota MVA divergente (ou aplicada pela SEFAZ)
+AUDITORIA,4,069918,DIVERGENTE,CFOP,6110,0000,CFOP divergente
+AUDITORIA,4,069918,DIVERGENTE,BASE_CALCULO,Base ICMS Próprio: 0.00,SEFAZ: 415.92,Diferença de Base de Cálculo (Base ICMS Próprio) > 0.05
+AUDITORIA,4,069918,DIVERGENTE,VALOR_IMPOSTO,ICMS Próprio (Origem): 0.00,SEFAZ: 36.29,"Item sem destaque de ICMS Próprio (Origem) no XML, mas com cobrança identificada pela SEFAZ (R$ 36.29)"
+AUDITORIA,4,069918,DIVERGENTE,MVA %,0.00%,47.02%,Alíquota MVA divergente (ou aplicada pela SEFAZ)
+AUDITORIA,5,069916,DIVERGENTE,CFOP,6110,0000,CFOP divergente
+AUDITORIA,5,069916,DIVERGENTE,BASE_CALCULO,Base ICMS Próprio: 0.00,SEFAZ: 259.25,Diferença de Base de Cálculo (Base ICMS Próprio) > 0.05
+AUDITORIA,5,069916,DIVERGENTE,VALOR_IMPOSTO,ICMS Próprio (Origem): 0.00,SEFAZ: 22.62,"Item sem destaque de ICMS Próprio (Origem) no XML, mas com cobrança identificada pela SEFAZ (R$ 22.62)"
+AUDITORIA,5,069916,DIVERGENTE,MVA %,0.00%,47.02%,Alíquota MVA divergente (ou aplicada pela SEFAZ)
+AUDITORIA,6,000239,DIVERGENTE,CFOP,6110,0000,CFOP divergente
+AUDITORIA,6,000239,DIVERGENTE,BASE_CALCULO,Base ICMS Próprio: 0.00,SEFAZ: 137.49,Diferença de Base de Cálculo (Base ICMS Próprio) > 0.05
+AUDITORIA,6,000239,DIVERGENTE,VALOR_IMPOSTO,ICMS Próprio (Origem): 0.00,SEFAZ: 11.41,"Item sem destaque de ICMS Próprio (Origem) no XML, mas com cobrança identificada pela SEFAZ (R$ 11.41)"
+AUDITORIA,6,000239,DIVERGENTE,MVA %,0.00%,40.59%,Alíquota MVA divergente (ou aplicada pela SEFAZ)

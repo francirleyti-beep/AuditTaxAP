@@ -1,37 +1,42 @@
 import React from 'react';
+import { AlertTriangle, AlertCircle } from 'lucide-react';
 import { ConsistencyError } from '../api';
 
 interface Props {
-    errors?: ConsistencyError[];
+    errors: ConsistencyError[];
 }
 
 const ConsistencyAlert: React.FC<Props> = ({ errors }) => {
-    if (!errors || errors.length === 0) return null;
+    if (errors.length === 0) return null;
 
     return (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r shadow-sm">
-            <div className="flex">
-                <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                </div>
-                <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
-                        Inconsistências encontradas no XML ({errors.length})
-                    </h3>
-                    <div className="mt-2 text-sm text-red-700">
-                        <ul className="list-disc pl-5 space-y-1">
-                            {errors.map((error, idx) => (
-                                <li key={idx}>
-                                    <span className="font-semibold">{error.message}</span>
-                                    {error.field && (
-                                        <span> - Campo <strong>{error.field}</strong> (Header: {error.sefaz_value} / Soma Itens: {error.xml_value})</span>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+        <div className="bg-orange-50 dark:bg-orange-950/20 rounded-2xl border border-orange-200 dark:border-orange-900/50 overflow-hidden mb-6 shadow-sm">
+            <div className="px-6 py-3 bg-orange-100 dark:bg-orange-900/30 border-b border-orange-200 dark:border-orange-900/50 flex items-center gap-2">
+                <AlertTriangle size={18} className="text-orange-600 dark:text-orange-400" />
+                <h3 className="text-xs font-black uppercase text-orange-800 dark:text-orange-300 tracking-widest">Aviso de Inconsistência Interna (XML)</h3>
+            </div>
+            
+            <div className="p-6">
+                <p className="text-sm text-orange-700 dark:text-orange-400 mb-4 font-medium italic">
+                    Foram detectadas discrepâncias nos totais do XML ou na lógica tributária dos itens:
+                </p>
+                
+                <div className="space-y-3">
+                    {errors.map((error, idx) => (
+                        <div key={idx} className="flex gap-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-orange-100 dark:border-orange-900/30 shadow-sm">
+                            <div className="shrink-0 p-2 bg-orange-50 dark:bg-orange-950/40 rounded-lg h-fit">
+                                <AlertCircle size={16} className="text-orange-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase text-orange-500 tracking-widest leading-none mb-1">{error.field}</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight mb-1">{error.message}</p>
+                                <div className="flex gap-4 text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-2">
+                                    <span>Declarado: <span className="font-bold text-slate-700 dark:text-slate-300">{error.xml_value}</span></span>
+                                    <span>Calculado: <span className="font-bold text-slate-700 dark:text-slate-300">{error.sefaz_value}</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

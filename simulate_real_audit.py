@@ -53,17 +53,23 @@ def main():
     # --- Executar Fluxo Principal ---
     print("\n[AuditService] Iniciando processamento...")
     try:
-        report_path, results = service.process_audit(xml_path)
+        report_path, results, consistency_errors, invoice_dto = service.process_audit(xml_path)
         print(f"\n✅ SUCESSO! Relatório gerado em: {report_path}")
         
-        # Exibir conteúdo curto do relatório
-        print("\n--- Conteúdo do Relatório (Primeiras linhas) ---")
-        with open(report_path, "r", encoding="utf-8-sig") as f:
-            for _ in range(10):
-                line = f.readline()
-                if not line: break
-                print(line.strip())
-                
+        # Exibir resultados detalhados no console para conferir a diferenciação ST/Próprio
+        print("\n--- Resultados Detalhados da Auditoria (Diferenciação ST/Próprio) ---")
+        for res in results:
+             status = "✅ OK" if res.is_compliant else "❌ DIVERGENTE"
+             print(f"Item {res.item_index} - {res.product_code}: {status}")
+             for diff in res.differences:
+                  print(f"  Field: {diff.field} | Message: {diff.message}")
+                  print(f"  XML: {diff.xml_value} | SEFAZ: {diff.sefaz_value}")
+        
+        if consistency_errors:
+             print("\n--- Erros de Consistência Interna ---")
+             for err in consistency_errors:
+                  print(f"  {err.field}: {err.message}")
+
     except Exception as e:
         print(f"❌ ERRO CRÍTICO: {e}")
         import traceback
