@@ -1,6 +1,7 @@
 from datetime import datetime
 from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import Optional, List
 
 @dataclass
 class FiscalItemDTO:
@@ -11,19 +12,33 @@ class FiscalItemDTO:
     origin: str  # 'XML' ou 'SEFAZ'
     item_index: int
     product_code: str
-    product_description: str  # [NEW] xProd
+    product_description: str
     ncm: str
     cest: str
     cfop: str
     cst: str
-    quantity: Decimal         # [NEW] qCom
-    unit_price: Decimal       # [NEW] vUnCom
-    amount_total: Decimal     # vProd
+    quantity: Decimal
+    unit_price: Decimal
+    amount_total: Decimal
     tax_base: Decimal
     tax_rate: Decimal
     tax_value: Decimal
     mva_percent: Decimal
     is_suframa_benefit: bool
+    
+    # Campos com valor padrão (devem vir por último)
+    gtin: str = ""            # [NEW] cEAN
+    gtin_tax: str = ""        # [NEW] cEANTrib
+    # Campos ICMS / ICMS ST
+    icms_orig: str = ""       # Origem da Mercadoria (Código 0-8)
+    origin_uf: str = ""       # [NEW] UF de Origem (ex: GO, SP)
+    icms_mod_bc: str = ""     # Modalidade BC ICMS
+    icms_st_mod_bc: str = ""  # Modalidade BC ICMS ST
+    icms_st_value: Decimal = field(default_factory=lambda: Decimal("0.00")) # vICMSST
+    icms_st_base: Decimal = field(default_factory=lambda: Decimal("0.00"))  # vBCST
+    icms_st_rate: Decimal = field(default_factory=lambda: Decimal("0.00"))  # pICMSST
+    icms_interestadual_rate: Decimal = field(default_factory=lambda: Decimal("0.00")) # [NEW] pICMS interestadual
+
     # Campos específicos da SEFAZ (opcionais, preenchidos pelo ItemExtractor)
     sefaz_tax_value: Decimal = field(default_factory=lambda: Decimal("0.00"))
     sefaz_mva_percent: Decimal = field(default_factory=lambda: Decimal("0.00"))
@@ -39,7 +54,8 @@ class FiscalItemDTO:
             
         # Validar valores monetários não negativos
         monetary_fields = ['quantity', 'unit_price', 'amount_total', 'tax_base', 'tax_rate', 'tax_value', 'mva_percent',
-                          'sefaz_tax_value', 'sefaz_mva_percent', 'sefaz_benefit_value']
+                          'sefaz_tax_value', 'sefaz_mva_percent', 'sefaz_benefit_value',
+                          'icms_st_value', 'icms_st_base', 'icms_st_rate', 'icms_interestadual_rate']
         for field in monetary_fields:
             val = getattr(self, field)
             if val < 0:
@@ -59,13 +75,16 @@ class InvoiceDTO:
     emitter_name: str
     emitter_cnpj: str
     emitter_city: str
+    emitter_uf: str         # [NEW]
     # Destinatário
     recipient_name: str
     recipient_doc: str # CPF ou CNPJ
+    recipient_uf: str       # [NEW]
     # Totais
     total_products: Decimal # vProd (Total dos produtos)
     total_invoice: Decimal  # vNF (Total da Nota)
     total_icms: Decimal     # vICMS (Total ICMS)
+    total_st: Decimal       # [NEW] vST
     # Transporte e Protocolo
     freight_mode: str       # modFrete
     protocol_number: str    # nProt
@@ -91,3 +110,4 @@ class AuditResultDTO:
     product_code: str
     is_compliant: bool
     differences: list[AuditDifference]
+    sefaz_item: Optional[FiscalItemDTO] = None  # [NEW] Store the sefaz item data

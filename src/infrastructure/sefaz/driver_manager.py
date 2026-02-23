@@ -11,10 +11,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 try:
     from PIL import Image
-    import pytesseract
+    import ddddocr
 except ImportError:
     Image = None
-    pytesseract = None
+    ddddocr = None
 
 from src.utils.config import Config
 
@@ -31,6 +31,14 @@ class SeleniumDriverManager:
         self.remote_url = remote_url or Config.SELENIUM_REMOTE_URL
         self.driver: Optional[webdriver.Chrome] = None
         self.logger = logging.getLogger(__name__)
+        self._ocr = None
+
+    def _get_ocr(self):
+        """Inicialização preguiçosa do motor OCR."""
+        if self._ocr is None and ddddocr:
+            # show_ad=False desativa mensagens no console
+            self._ocr = ddddocr.DdddOcr(show_ad=False)
+        return self._ocr
     
     def __enter__(self):
         """Context manager: abre driver."""
@@ -79,8 +87,8 @@ class SeleniumDriverManager:
         if not self.driver:
             raise RuntimeError("Driver não inicializado")
 
-        if not pytesseract or not Image:
-            self.logger.warning("Bibliotecas de OCR não encontradas. Solicitando input manual.")
+        if not ddddocr or not Image:
+            self.logger.warning("Biblioteca ddddocr não encontrada. Solicite suporte técnico.")
             return self.wait_for_manual_input()
 
         for attempt in range(max_retries):
@@ -304,44 +312,21 @@ class SeleniumDriverManager:
         return None
 
     def _solve_captcha(self, element) -> str:
-        """Captura screenshot do elemento e resolve OCR com pré-processamento."""
-        from PIL import ImageOps, ImageFilter  # Import inside
-
-        # 1. Captura imagem
-        png = element.screenshot_as_png
-        img = Image.open(io.BytesIO(png))
+        """Captura screenshot do elemento e resolve usando ddddocr."""
+        # 1. Captura bytes da imagem diretamente do Selenium
+        image_bytes = element.screenshot_as_png
         
-        # 2. Pré-processamento
-        # Converter para escala de cinza
-        img = img.convert('L')
+        # 2. OCR via ddddocr (Deep Learning especializado em captchas)
+        ocr = self._get_ocr()
+        if not ocr:
+            return ""
+            
+        text = ocr.classification(image_bytes)
         
-        # Aumentar tamanho (3x é suficiente, 4x pode distorcer)
-        width, height = img.size
-        img = img.resize((width * 3, height * 3), Image.Resampling.LANCZOS)
-        
-        # Binarização (Threshold)
-        # Manter pixels claros
-        img = img.point(lambda p: p > 140 and 255)
-        
-        # Dilatação (Engrossar caracteres brancos)
-        img = img.filter(ImageFilter.MaxFilter(3))
-        
-        # Inverter cores (Branco no Preto -> Preto no Branco) para o Tesseract
-        img = ImageOps.invert(img)
-        
-        # Sharpen para definir bordas (v vs y, 4 vs h etc)
-        img = img.filter(ImageFilter.SHARPEN)
-        img = img.filter(ImageFilter.SHARPEN)
-        
-        # 3. OCR
-        # --psm 7: Trata como uma linha única de texto (lida melhor com espaços)
-        custom_config = r'--psm 7 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-        text = pytesseract.image_to_string(img, config=custom_config)
-        
-        # 4. Limpeza
+        # 3. Limpeza básica (apenas segurança)
         clean_text = re.sub(r'[^a-zA-Z0-9]', '', text)
         
-        self.logger.info(f"OCR Raw: '{text.strip()}' -> Clean: '{clean_text}'")
+        self.logger.info(f"ddddocr Result: '{text}' -> Clean: '{clean_text}'")
         return clean_text
 
     def _wait_for_results(self, timeout=10) -> bool:

@@ -115,6 +115,7 @@ def process_audit_task(self, audit_id: str, xml_path_str: str):
             "total_products": serialize_val(invoice_dto.total_products),
             "total_invoice": serialize_val(invoice_dto.total_invoice),
             "total_icms": serialize_val(invoice_dto.total_icms),
+            "total_st": serialize_val(getattr(invoice_dto, 'total_st', 0)), # [NEW]
             "protocol_number": invoice_dto.protocol_number
         }
         audit.invoice_header = header_data
@@ -131,13 +132,27 @@ def process_audit_task(self, audit_id: str, xml_path_str: str):
             fiscal_item = items_map.get(res.item_index)
             details_json = to_dict(fiscal_item) if fiscal_item else {}
             
+            # [NEW] Merge SEFAZ specific fields into the details object
+            if res.sefaz_item:
+                details_json["sefaz_tax_value"] = serialize_val(res.sefaz_item.sefaz_tax_value)
+                details_json["sefaz_mva_percent"] = serialize_val(res.sefaz_item.sefaz_mva_percent)
+                details_json["sefaz_benefit_value"] = serialize_val(res.sefaz_item.sefaz_benefit_value)
+                details_json["sefaz_interestadual_rate"] = serialize_val(res.sefaz_item.icms_interestadual_rate) # [NEW]
+                details_json["sefaz_st_base"] = serialize_val(res.sefaz_item.icms_st_base)
+                details_json["sefaz_st_rate"] = serialize_val(res.sefaz_item.icms_st_rate)
+                # Important: Se o XML não tinha ST mas a SEFAZ cobrou, precisamos dessas flags no frontend
+                if "icms_st_value" not in details_json or details_json["icms_st_value"] == 0:
+                     # Para exibição visual, se a sefaz cobrou ST, garantimos que o bloco de ST apareça
+                     # se o componente frontend checar por sefaz_tax_value tbm.
+                     pass
+
             item = AuditItem(
                 audit_id=audit_id,
                 item_index=res.item_index,
                 product_code=res.product_code,
                 product_name=fiscal_item.product_description if fiscal_item else f"ITEM {res.item_index}", 
                 status="compliant" if res.is_compliant else "divergent",
-                issues=[d.message for d in res.differences],
+                issues=[to_dict(d) for d in res.differences], # [CHANGED] Detailed objects
                 details=details_json
             )
             db.add(item)

@@ -58,6 +58,12 @@ const InvoiceHeader: React.FC<Props> = ({ header }) => {
                         <span className="text-sm text-gray-600">Total ICMS:</span>
                         <span className="font-medium">{formatCurrency(header.total_icms)}</span>
                     </div>
+                    {header.total_st && header.total_st > 0 && (
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm text-gray-600">Total ST:</span>
+                            <span className="font-medium text-orange-600">{formatCurrency(header.total_st)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between items-center border-t pt-1 mt-1">
                         <span className="text-sm font-bold text-gray-800">Total Nota:</span>
                         <span className="font-bold text-green-600">{formatCurrency(header.total_invoice)}</span>

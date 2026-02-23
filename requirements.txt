@@ -17,5 +17,5 @@ pytest==7.4.4
 httpx==0.26.0
 fastapi-limiter==0.1.6
 # For OCR
-pytesseract==0.3.10
+ddddocr
 Pillow==10.2.0

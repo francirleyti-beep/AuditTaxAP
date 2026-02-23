@@ -64,11 +64,14 @@ class XMLReader:
         emitter_name = get_text(emit, "xNome")
         emitter_cnpj = get_text(emit, "CNPJ")
         emitter_city = get_text(ender_emit, "xMun")
+        emitter_uf = get_text(ender_emit, "UF")
 
         # --- Destinatário ---
         dest = find(inf_nfe, "dest")
+        ender_dest = find(dest, "enderDest")
         recipient_name = get_text(dest, "xNome")
         recipient_doc = get_text(dest, "CNPJ") or get_text(dest, "CPF")
+        recipient_uf = get_text(ender_dest, "UF")
 
         # --- Totais ---
         total = find(inf_nfe, "total")
@@ -77,6 +80,7 @@ class XMLReader:
         v_prod_total = Decimal(get_text(icms_tot, "vProd", "0.00"))
         v_nf_total = Decimal(get_text(icms_tot, "vNF", "0.00"))
         v_icms_total = Decimal(get_text(icms_tot, "vICMS", "0.00"))
+        v_st_total = Decimal(get_text(icms_tot, "vST", "0.00")) # [NEW]
 
         # --- Transporte ---
         transp = find(inf_nfe, "transp")
@@ -114,6 +118,8 @@ class XMLReader:
             prod_vals = {
                 "cProd": get_text(prod, "cProd"),
                 "xProd": get_text(prod, "xProd"),
+                "cEAN": get_text(prod, "cEAN"),
+                "cEANTrib": get_text(prod, "cEANTrib"),
                 "NCM": get_text(prod, "NCM"),
                 "CEST": get_text(prod, "CEST"),
                 "CFOP": get_text(prod, "CFOP"),
@@ -132,10 +138,13 @@ class XMLReader:
             p_mvast = Decimal("0.00")
             v_icms_deson = Decimal("0.00")
             mot_des_icms = ""
+            icms_orig = ""
+            icms_mod_bc = ""
+            icms_st_mod_bc = ""
+            icms_interestadual_rate = Decimal("0.00")
             
             if icms_node is not None:
                 # O XML tem apenas UM filho dentro de ICMS (ICMS00, ICMS40, etc)
-                # Iterar para achar o primeiro filho
                 for child in icms_node:
                     tax_group = child
                     break
@@ -143,13 +152,35 @@ class XMLReader:
                     tax_group = None
 
                 if tax_group is not None:
-                    cst = get_text(tax_group, "CST") or get_text(tax_group, "CSOSN")
+                    # CST completo = Origem (Tabela A) + Tributação (Tabela B)
+                    orig = get_text(tax_group, "orig")
+                    tributacao = get_text(tax_group, "CST") or get_text(tax_group, "CSOSN")
+                    
+                    # Garante que temos 3 dígitos: 1 de origem + 2 de tributação (ex: 0 + 40 = 040)
+                    cst = f"{orig}{tributacao.zfill(2)}" if orig and tributacao else tributacao.zfill(3)
+                    
+                    icms_orig = orig
+                    icms_mod_bc = get_text(tax_group, "modBC")
+                    icms_st_mod_bc = get_text(tax_group, "modBCST")
+                    
                     v_bc = Decimal(get_text(tax_group, "vBC", "0.00"))
                     p_icms = Decimal(get_text(tax_group, "pICMS", "0.00"))
                     v_icms = Decimal(get_text(tax_group, "vICMS", "0.00"))
+                    
+                    v_bcst = Decimal(get_text(tax_group, "vBCST", "0.00"))
+                    p_icmsst = Decimal(get_text(tax_group, "pICMSST", "0.00"))
+                    v_icmsst = Decimal(get_text(tax_group, "vICMSST", "0.00"))
+                    
                     p_mvast = Decimal(get_text(tax_group, "pMVAST", "0.00"))
                     v_icms_deson = Decimal(get_text(tax_group, "vICMSDeson", "0.00"))
                     mot_des_icms = get_text(tax_group, "motDesICMS")
+
+                    # Lógica para taxa interestadual
+                    if emitter_uf != recipient_uf:
+                        icms_interestadual_rate = p_icms
+                    
+                    if not icms_interestadual_rate and v_icms_deson > 0 and v_prod > 0:
+                        icms_interestadual_rate = (v_icms_deson / v_prod * 100).quantize(Decimal("1"))
 
             is_suframa = (mot_des_icms == "7")
 
@@ -157,20 +188,31 @@ class XMLReader:
                 origin="XML",
                 item_index=n_item,
                 product_code=prod_vals["cProd"],
-                product_description=prod_vals["xProd"], # [NEW]
+                product_description=prod_vals["xProd"],
+                gtin=prod_vals["cEAN"],
+                gtin_tax=prod_vals["cEANTrib"],
                 ncm=prod_vals["NCM"],
                 cest=prod_vals["CEST"],
                 cfop=prod_vals["CFOP"],
                 cst=cst,
-                quantity=q_com,        # [NEW]
-                unit_price=v_un_com,   # [NEW]
+                quantity=q_com,
+                unit_price=v_un_com,
                 amount_total=v_prod,
                 tax_base=v_bc,
                 tax_rate=p_icms,
                 tax_value=v_icms,
                 mva_percent=p_mvast,
                 is_suframa_benefit=is_suframa,
-                sefaz_benefit_value=v_icms_deson
+                sefaz_benefit_value=v_icms_deson,
+                # Novos campos ICMS/ST
+                icms_orig=icms_orig,
+                origin_uf=emitter_uf, # [NEW]
+                icms_mod_bc=icms_mod_bc,
+                icms_st_mod_bc=icms_st_mod_bc,
+                icms_st_value=v_icmsst,
+                icms_st_base=v_bcst,
+                icms_st_rate=p_icmsst,
+                icms_interestadual_rate=icms_interestadual_rate
             )
             fiscal_items.append(item_dto)
 
@@ -183,11 +225,14 @@ class XMLReader:
             emitter_name=emitter_name,
             emitter_cnpj=emitter_cnpj,
             emitter_city=emitter_city,
+            emitter_uf=emitter_uf,
             recipient_name=recipient_name,
             recipient_doc=recipient_doc,
+            recipient_uf=recipient_uf,
             total_products=v_prod_total,
             total_invoice=v_nf_total,
             total_icms=v_icms_total,
+            total_st=v_st_total, # [NEW]
             freight_mode=mod_frete,
             protocol_number=prot_number,
             protocol_date=prot_date,

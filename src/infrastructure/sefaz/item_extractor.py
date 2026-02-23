@@ -16,11 +16,17 @@ class ItemExtractor:
     CST_PATTERN = re.compile(r'^(\d+)')
     # MVA Ajustada: formato "ALIQUOTA MVA AJUSTADA] =39.51%)" ou "=47.02%)"
     MVA_AJUSTADA_PATTERN = re.compile(r'ALIQUOTA MVA AJUSTADA\]?\s*=?\s*([\d\.]+)%')
+    # Alíquota Interestadual (C)
+    INTERESTADUAL_ALQ_PATTERN = re.compile(r'ALIQ\.INTERESTADUAL\s*=\s*([\d\.,]+)%')
+    # Alíquota Interna (G)
+    INTERNA_ALQ_PATTERN = re.compile(r'ALIQUOTA INTERNA\s*=\s*([\d\.,]+)%')
+    
     BC_PATTERN = re.compile(r'F\)\s*BASE.*?=\s*([\d\.,]+)')
-    ALQ_PATTERN = re.compile(r'ALIQUOTA INTERNA\s*=\s*([\d,]+)%')
-    # Benefício SUFRAMA monetário: "BENEFICIO SUFRAMA R$ 540,98" ou "BENEFICIO SUFRAMAR$ 540,98"
+    # Valor Produto: "A) VALOR PRODUTO = 4.508,16"
+    PRODUCT_VALUE_PATTERN = re.compile(r'A\)\s*VALOR PRODUTO\s*=\s*([\d\.,]+)')
+    # Benefício SUFRAMA monetário: "BENEFICIO SUFRAMA R$ 540,98"
     SUFRAMA_VALUE_PATTERN = re.compile(r'BENEFICIO\s+SUFRAMA\s*R\$\s*([\d\.,]+)')
-    # Regex monetário flexível: aceita 'R$ 1.234,56' e '1.234,56'
+    # Regex monetário flexível
     MONEY_PATTERN = re.compile(r'(?:R\$\s*)?([\d\.]+,\d{2})')
     
     def __init__(self):
@@ -59,15 +65,17 @@ class ItemExtractor:
         if not row1:
             return None
         
-        # 3. Extrair campos da linha 1 (dados estruturados via h5)
-        data_map = self._extract_data_map(row1)
-        
-        # 4. Obter linhas seguintes
+        # 3. Obter linhas seguintes
         row2, row3, row4 = self._get_sibling_rows(row1)
 
-        # Fallback: Se não achou dados na linha 1, tenta linha 2 (Layout B)
-        if not data_map and row2:
-             data_map = self._extract_data_map(row2)
+        # 4. Extrair campos das linhas (dados estruturados via h5)
+        data_map = self._extract_data_map(row1)
+        if row2:
+             data_map.update(self._extract_data_map(row2))
+        if row3:
+             data_map.update(self._extract_data_map(row3))
+             
+        self.logger.debug(f"Data map keys: {list(data_map.keys())}")
         
         # 5. Definir CFOP (Prioridade: Mapa > Default > DataMap)
         cfop = cfop_map.get(item_idx, default_cfop)
@@ -83,33 +91,86 @@ class ItemExtractor:
         # 7. Extrair benefício SUFRAMA monetário
         sefaz_benefit_value = self._extract_suframa_value(row1)
         
-        # 8. Extrair MVA Ajustada do bloco de cálculo detalhado (row4)
+        # 8. Extrair valores do memorial (row4)
+        sefaz_product_value = self._extract_product_value(row4)
+        sefaz_tax_base = self._extract_tax_base(row4)
         sefaz_mva_percent = self._extract_mva_ajustada(row4)
+        sefaz_interestadual_rate = self._extract_interestadual_rate(row4)
+        sefaz_internal_rate = self._extract_internal_rate(row4)
 
         # 9. Montar DTO
+        product_code = self._extract_product_code_from_h2(h2) or self._extract_product_code(data_map)
+        product_description = data_map.get("DESCRICAO NOTA", "").strip() or data_map.get("PRODUTO", "").strip()
+
         return FiscalItemDTO(
             origin="SEFAZ",
             item_index=item_idx,
-            product_code=self._extract_product_code(data_map),
-            product_description=data_map.get("PRODUTO", "").strip(),  # [NEW]
+            product_code=product_code,
+            product_description=product_description,
+            gtin=data_map.get("CEAN (GTIN)", "").strip(),
+            gtin_tax=data_map.get("CEAN TRIBUTARIO (GTIN)", "").strip(),
             ncm=data_map.get("NCM", "").strip(),
             cest=data_map.get("CEST", "").strip(),
             cfop=cfop,
             cst=self._extract_cst(data_map),
-            quantity=Decimal("1.00"),      # [NEW] Default 1.00 (SEFAZ HTML não mostra Qtd clara no Memorial)
-            unit_price=sefaz_tax_value,    # [NEW] Placeholder (Valor Total / 1)
-            amount_total=sefaz_tax_value,  # Ajustado para usar Valor Cobrado como base de comparação se necessário
-            tax_base=self._extract_tax_base(row4),
-            tax_rate=self._extract_tax_rate(row4),
-            tax_value=sefaz_tax_value,  # Populado com o valor cobrado para compatibilidade
-            mva_percent=sefaz_mva_percent,  # Populado com MVA Ajustada para compatibilidade
+            quantity=Decimal("1.00"),
+            unit_price=sefaz_product_value,
+            amount_total=sefaz_product_value,
+            tax_base=sefaz_tax_base,
+            tax_rate=sefaz_internal_rate,  # Alíquota Interna de AP
+            tax_value=sefaz_tax_value,     # Valor cobrado pela SEFAZ
+            mva_percent=sefaz_mva_percent,
             is_suframa_benefit=(sefaz_benefit_value > Decimal("0.00")),
+            # Campos ICMS / ST
+            icms_orig="", # Código numérico não disponível no HTML Memorial
+            origin_uf=data_map.get("ORIGEM", "").strip(),
+            icms_st_rate=sefaz_internal_rate,
+            icms_st_base=sefaz_tax_base,
+            icms_st_value=sefaz_tax_value, # [NEW]
+            icms_interestadual_rate=sefaz_interestadual_rate,
             # Campos sefaz_* específicos
             sefaz_tax_value=sefaz_tax_value,
             sefaz_mva_percent=sefaz_mva_percent,
             sefaz_benefit_value=sefaz_benefit_value,
         )
-    
+
+    def _extract_product_code_from_h2(self, h2) -> str:
+        """Extrai o código que fica logo após o <h2>ITEM:X</h2>."""
+        parent_td = h2.find_parent("td")
+        if parent_td:
+            full_text = parent_td.get_text(" ", strip=True)
+            h2_text = h2.get_text(" ", strip=True)
+            # Remove o texto do h2 e pega o que sobra
+            code_part = full_text.replace(h2_text, "").strip()
+            return code_part.split()[0] if code_part else ""
+        return ""
+
+    def _extract_interestadual_rate(self, row4) -> Decimal:
+        if not row4: return Decimal("0.00")
+        text = row4.get_text(" ", strip=True)
+        match = self.INTERESTADUAL_ALQ_PATTERN.search(text)
+        if match:
+             return Decimal(match.group(1).replace(",", "."))
+        return Decimal("0.00")
+
+    def _extract_internal_rate(self, row4) -> Decimal:
+        if not row4: return Decimal("0.00")
+        text = row4.get_text(" ", strip=True)
+        match = self.INTERNA_ALQ_PATTERN.search(text)
+        if match:
+             return Decimal(match.group(1).replace(",", "."))
+        return Decimal("0.00")
+
+    def _extract_tax_base(self, row4) -> Decimal:
+        if not row4: return Decimal("0.00")
+        text = row4.get_text(" ", strip=True)
+        match = self.BC_PATTERN.search(text)
+        return self._parse_money(match.group(1)) if match else Decimal("0.00")
+
+    def _extract_tax_rate(self, row4) -> Decimal:
+        """Deprecated: use _extract_internal_rate or _extract_interestadual_rate"""
+        return self._extract_internal_rate(row4)
+
     # --- Helpers ---
     
     def _extract_item_index(self, h2) -> Optional[int]:
@@ -133,10 +194,6 @@ class ItemExtractor:
     def _extract_data_map(self, row) -> Dict[str, str]:
         """
         Extrai pares label→valor de TDs que contêm <h5> labels.
-        Corrigido para lidar com múltiplos <h5> no mesmo <td>.
-        
-        Estratégia: para cada <h5>, pega todo o texto entre ele e o próximo <h5>
-        ou fim do <td>, em vez de usar replace que falha com multi-labels.
         """
         data_map = {}
         cols = row.find_all("td")
@@ -149,25 +206,20 @@ class ItemExtractor:
                     value_parts = []
                     sibling = h5.next_sibling
                     while sibling:
-                        # Parar se encontrar outro h5
                         if isinstance(sibling, Tag) and sibling.name == "h5":
                             break
-                        # Pegar texto de NavigableString ou tag que não seja h5
                         if isinstance(sibling, NavigableString):
                             text = str(sibling).strip()
-                            if text:
-                                value_parts.append(text)
+                            if text: value_parts.append(text)
                         elif isinstance(sibling, Tag):
                             text = sibling.get_text(strip=True)
-                            if text:
-                                value_parts.append(text)
+                            if text: value_parts.append(text)
                         sibling = sibling.next_sibling
                     
                     value = " ".join(value_parts).strip()
                     if label not in data_map:
                         data_map[label] = value
             else:
-                # Caso especial: Valor Total as vezes vem solto com R$
                 if "R$" in col.get_text():
                     data_map["VALOR_TOTAL"] = col.get_text(strip=True)
         return data_map
@@ -177,42 +229,25 @@ class ItemExtractor:
         return prod.split(" ")[0] if prod else ""
     
     def _extract_cst(self, data_map) -> str:
+        """Extrai e normaliza o CST para 3 dígitos."""
         cst_raw = data_map.get("CST", "").strip()
         match = self.CST_PATTERN.search(cst_raw)
-        return match.group(1) if match else ""
+        if match:
+            # Garante que tenha 3 dígitos (ex: '40' vira '040')
+            return match.group(1).zfill(3)
+        return ""
     
     def _extract_sefaz_tax_value(self, row1) -> Decimal:
-        """
-        Extrai o Valor Cobrado (Sefaz) buscando o <h2> dentro do TD
-        que contém <h5>CALCULO VALOR(Sefaz)</h5>.
-        
-        HTML esperado:
-        <td>
-            <h5>CALCULO VALOR(Sefaz)</h5>
-            <h3></h3><h2>R$ 455,25</h2>
-        </td>
-        """
         cols = row1.find_all("td")
         for col in cols:
             h5 = col.find("h5", string=lambda t: t and "CALCULO VALOR" in t.upper())
             if h5:
-                # Buscar o <h2> dentro do mesmo TD
                 h2_val = col.find("h2")
                 if h2_val:
                     return self._parse_money(h2_val.get_text(strip=True))
         return Decimal("0.00")
     
     def _extract_suframa_value(self, row1) -> Decimal:
-        """
-        Extrai o valor monetário do benefício SUFRAMA.
-        Busca regex no texto inteiro da row (pode estar no TD da row1).
-        
-        HTML esperado:
-        <td>
-            <h5>BENEFICIO</h5>0<br>
-            <h5>BENEFICIO SUFRAMA</h5>R$ 540,98
-        </td>
-        """
         text = row1.get_text(" ", strip=True)
         match = self.SUFRAMA_VALUE_PATTERN.search(text)
         if match:
@@ -220,37 +255,23 @@ class ItemExtractor:
         return Decimal("0.00")
     
     def _extract_mva_ajustada(self, row4) -> Decimal:
-        """
-        Extrai MVA Ajustada do bloco de cálculo detalhado.
-        
-        Texto esperado:
-        "E)VALOR DA MVA [ D X  ALIQUOTA MVA AJUSTADA] =39.51%) ] =1.567,43"
-        
-        Nota: O formato usa PONTO como separador decimal (39.51), não vírgula!
-        """
         if not row4:
             return Decimal("0.00")
         text = row4.get_text(" ", strip=True)
         match = self.MVA_AJUSTADA_PATTERN.search(text)
         if match:
             try:
-                # MVA usa ponto como decimal (39.51, 47.02)
                 return Decimal(match.group(1))
             except InvalidOperation:
                 self.logger.warning(f"Falha ao converter MVA: {match.group(1)}")
         return Decimal("0.00")
 
-    def _extract_tax_base(self, row4) -> Decimal:
+    def _extract_product_value(self, row4) -> Decimal:
+        """Extrai o Valor do Produto (A) VALOR PRODUTO = ...)"""
         if not row4: return Decimal("0.00")
         text = row4.get_text(strip=True)
-        match = self.BC_PATTERN.search(text)
+        match = self.PRODUCT_VALUE_PATTERN.search(text)
         return self._parse_money(match.group(1)) if match else Decimal("0.00")
-
-    def _extract_tax_rate(self, row4) -> Decimal:
-        if not row4: return Decimal("0.00")
-        text = row4.get_text(strip=True)
-        match = self.ALQ_PATTERN.search(text)
-        return Decimal(match.group(1).replace(",", ".")) if match else Decimal("0.00")
     
     def _parse_money(self, text: str) -> Decimal:
         """

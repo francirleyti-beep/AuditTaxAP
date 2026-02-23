@@ -21,9 +21,9 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({ results }) => 
         const issueCounts: { [key: string]: number } = {};
         results.items.forEach(item => {
             item.issues.forEach(issue => {
-                // Simplify issue text for chart (take first 30 chars or segment)
-                const shortIssue = issue.length > 50 ? issue.substring(0, 50) + '...' : issue;
-                issueCounts[shortIssue] = (issueCounts[shortIssue] || 0) + 1;
+                // Use the field name (e.g., "NCM", "ALIQ_INTERNA") as the label for grouping
+                const label = issue.field;
+                issueCounts[label] = (issueCounts[label] || 0) + 1;
             });
         });
 

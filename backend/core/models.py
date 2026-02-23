@@ -16,6 +16,7 @@ class Audit(Base):
     result_summary = Column(JSON, nullable=True)
     error_message = Column(String, nullable=True)
     report_path = Column(String, nullable=True)
+    is_fully_reviewed = Column(Integer, default=0) # [NEW] 0=No, 1=Yes
     
     # New fields for Project Evolution
     invoice_header = Column(JSON, nullable=True)      # Stores InvoiceDTO header data
@@ -33,6 +34,7 @@ class AuditItem(Base):
     product_name = Column(String)
     status = Column(String) # compliant, divergent
     issues = Column(JSON) # List of divergence messages
+    is_reviewed = Column(Integer, default=0) # [NEW] 0=No, 1=Yes
     
     # New field for item details (FiscalItemDTO)
     details = Column(JSON, nullable=True)

@@ -131,8 +131,9 @@ async def get_audit_results(audit_id: str, db: Session = Depends(get_db)):
     return {
         "audit_id": audit.id,
         "summary": audit.result_summary,
-        "invoice_header": audit.invoice_header,          # [NEW]
-        "consistency_errors": audit.consistency_errors,  # [NEW]
+        "invoice_header": audit.invoice_header,
+        "consistency_errors": audit.consistency_errors,
+        "is_fully_reviewed": bool(audit.is_fully_reviewed), # [NEW]
         "items": [
             {
                 "item_index": item.item_index,
@@ -140,7 +141,8 @@ async def get_audit_results(audit_id: str, db: Session = Depends(get_db)):
                 "product_name": item.product_name,
                 "status": item.status,
                 "issues": item.issues,
-                "details": item.details                  # [NEW]
+                "is_reviewed": bool(item.is_reviewed),   # [NEW]
+                "details": item.details
             }
             for item in items
         ]
@@ -162,7 +164,90 @@ async def list_audits(skip: int = 0, limit: int = 20, db: Session = Depends(get_
             "status": a.status,
             "created_at": a.created_at,
             "completed_at": a.completed_at,
-            "summary": a.result_summary
+            "summary": a.result_summary,
+            "is_fully_reviewed": bool(a.is_fully_reviewed)
         }
         for a in audits
     ]
+
+@router.delete("/audit/{audit_id}")
+async def delete_audit(audit_id: str, db: Session = Depends(get_db)):
+    """Remove uma auditoria, seus itens e arquivos associados."""
+    audit = db.query(Audit).filter(Audit.id == audit_id).first()
+    if not audit:
+        raise HTTPException(404, "Auditoria não encontrada")
+    
+    # 1. Remover arquivos
+    xml_path = UPLOAD_DIR / f"{audit_id}.xml"
+    report_path = REPORTS_DIR / f"{audit_id}_report.csv"
+    
+    if xml_path.exists(): xml_path.unlink()
+    if report_path.exists(): report_path.unlink()
+    
+    # 2. Remover itens (Cascata manual caso não esteja no model)
+    db.query(AuditItem).filter(AuditItem.audit_id == audit_id).delete()
+    
+    # 3. Remover auditoria
+    db.delete(audit)
+    db.commit()
+    
+    return {"status": "success", "message": "Auditoria excluída"}
+
+@router.post("/audit/{audit_id}/retry")
+async def retry_audit(audit_id: str, db: Session = Depends(get_db)):
+    """Reinicia uma auditoria existente."""
+    audit = db.query(Audit).filter(Audit.id == audit_id).first()
+    if not audit:
+        raise HTTPException(404, "Auditoria não encontrada")
+    
+    xml_path = UPLOAD_DIR / f"{audit_id}.xml"
+    if not xml_path.exists():
+        raise HTTPException(400, "Arquivo XML original não encontrado para re-auditoria")
+    
+    # Resetar status
+    audit.status = "ready"
+    audit.progress = 0
+    audit.current_step = "Reiniciando..."
+    audit.error_message = None
+    
+    # Limpar itens anteriores
+    db.query(AuditItem).filter(AuditItem.audit_id == audit_id).delete()
+    db.commit()
+    
+    # Trigger Celery Task
+    process_audit_task.delay(audit_id, str(xml_path))
+    
+    return {"status": "queued", "audit_id": audit_id}
+
+@router.patch("/audit/item/{audit_id}/{item_index}/review")
+async def toggle_item_review(audit_id: str, item_index: int, reviewed: bool, db: Session = Depends(get_db)):
+    """Marca ou desmarca um item como conferido."""
+    item = db.query(AuditItem).filter(
+        AuditItem.audit_id == audit_id, 
+        AuditItem.item_index == item_index
+    ).first()
+    
+    if not item:
+        raise HTTPException(404, "Item não encontrado")
+    
+    item.is_reviewed = 1 if reviewed else 0
+    db.commit()
+    return {"status": "success", "is_reviewed": bool(item.is_reviewed)}
+
+@router.post("/audit/{audit_id}/finalize")
+async def finalize_audit_review(audit_id: str, db: Session = Depends(get_db)):
+    """Finaliza a auditoria se todos os itens estiverem conferidos."""
+    audit = db.query(Audit).filter(Audit.id == audit_id).first()
+    if not audit:
+        raise HTTPException(404, "Auditoria não encontrada")
+    
+    # Verificar se todos os itens estão marcados
+    total_items = db.query(AuditItem).filter(AuditItem.audit_id == audit_id).count()
+    reviewed_items = db.query(AuditItem).filter(AuditItem.audit_id == audit_id, AuditItem.is_reviewed == 1).count()
+    
+    if reviewed_items < total_items:
+        raise HTTPException(400, f"Não é possível finalizar: {total_items - reviewed_items} itens ainda não foram conferidos.")
+    
+    audit.is_fully_reviewed = 1
+    db.commit()
+    return {"status": "success", "is_fully_reviewed": True}
