@@ -26,14 +26,18 @@ class NCMRule(AuditRule):
 
 class CESTRule(AuditRule):
     def validate(self, xml_item: FiscalItemDTO, sefaz_item: FiscalItemDTO) -> Optional[AuditDifference]:
-        # Normalização básica: remover pontos
-        xml_cest = xml_item.cest.replace(".", "")
-        sefaz_cest = sefaz_item.cest.replace(".", "")
+        # Normalização defensiva: cast para string e remover pontos
+        xml_cest = str(xml_item.cest or "").replace(".", "")
+        sefaz_cest = str(sefaz_item.cest or "").replace(".", "")
+        
+        if not xml_cest and not sefaz_cest:
+            return None
+
         if xml_cest != sefaz_cest:
             return AuditDifference(
                 field="CEST",
-                xml_value=xml_item.cest,
-                sefaz_value=sefaz_item.cest,
+                xml_value=xml_item.cest or "Vazio",
+                sefaz_value=sefaz_item.cest or "Vazio",
                 message="CEST divergente"
             )
         return None
@@ -51,9 +55,9 @@ class CFOPRule(AuditRule):
 
 class CSTRule(AuditRule):
     def validate(self, xml_item: FiscalItemDTO, sefaz_item: FiscalItemDTO) -> Optional[AuditDifference]:
-        # Ambos já devem estar normalizados para 3 dígitos (ABB)
-        xml_cst = xml_item.cst
-        sefaz_cst = sefaz_item.cst
+        # Normalização para 3 dígitos (ABB) para evitar falso-positivo (ex: 00 vs 000)
+        xml_cst = str(xml_item.cst or "").zfill(3)
+        sefaz_cst = str(sefaz_item.cst or "").zfill(3)
         
         if xml_cst != sefaz_cst:
             return AuditDifference(
@@ -79,8 +83,10 @@ class ICMSOriginRule(AuditRule):
 from src.core.calculator import TaxCalculator
 
 class MonetaryRule(AuditRule):
-    def __init__(self, calculator: TaxCalculator, tolerance: Decimal = Decimal("0.05")):
-        self.calculator = calculator
+    """
+    (RF05) Valida se o valor do imposto no XML condiz com o exigido pela SEFAZ.
+    """
+    def __init__(self, tolerance: Decimal = Decimal("0.05")):
         self.tolerance = tolerance
 
     def validate(self, xml_item: FiscalItemDTO, sefaz_item: FiscalItemDTO) -> Optional[AuditDifference]:
@@ -111,9 +117,19 @@ class MonetaryRule(AuditRule):
                 sefaz_value=f"SEFAZ: {sefaz_val:.2f}",
                 message=msg
             )
+        return None
 
-        # 3. Validação do Cálculo da SEFAZ (Recálculo Independente)
-        # Determinar alíquota interna efetiva (Fallback para pICMSST se ALIQ INTERNA falhou no scraping)
+class SefazCalculationRule(AuditRule):
+    """
+    Validação do Cálculo da SEFAZ (Recálculo Independente).
+    Verifica se o valor cobrado pela SEFAZ é matematicamente consistente com seus próprios parâmetros.
+    """
+    def __init__(self, calculator: TaxCalculator, tolerance: Decimal = Decimal("0.05")):
+        self.calculator = calculator
+        self.tolerance = tolerance
+
+    def validate(self, xml_item: FiscalItemDTO, sefaz_item: FiscalItemDTO) -> Optional[AuditDifference]:
+        # Determinar alíquota interna efetiva
         alq_intra = sefaz_item.tax_rate
         if alq_intra == Decimal("0.00") and sefaz_item.icms_st_rate > Decimal("0.00"):
             alq_intra = sefaz_item.icms_st_rate
@@ -125,16 +141,15 @@ class MonetaryRule(AuditRule):
         # Determinar a base e o crédito conforme cenário fiscal (Plano A-I)
         base_produto = sefaz_item.amount_total
         benefit = sefaz_item.sefaz_benefit_value
-        # pICMS interestadual
-        alq_inter = sefaz_item.icms_interestadual_rate or xml_item.icms_interestadual_rate
+        sefaz_val = sefaz_item.sefaz_tax_value
         
         if xml_item.is_suframa_benefit and benefit > Decimal("0.00"):
-            # Operação SUFRAMA: base líquida = produto - benefício (Passo D)
+            # Operação SUFRAMA: base líquida = produto - benefício
             base_liquida = base_produto - benefit
-            # O CRÉDITO (Passo H) para abater do débito de ST é o próprio valor do benefício desonerado
+            # O CRÉDITO para abater do débito de ST é o próprio valor do benefício desonerado
             credito = benefit
         else:
-            # Operação normal: base = produto, crédito = ICMS próprio
+            # Operação normal: base = produto, crédito = ICMS próprio do XML
             base_liquida = base_produto
             credito = xml_item.tax_value
         
@@ -303,6 +318,7 @@ class AuditRuleChainBuilder:
             TaxBaseRule(),
             SuframaBenefitRule(),
             AliquotRule(),
-            MonetaryRule(calculator=calculator, tolerance=Config.AUDIT_TOLERANCE),
+            MonetaryRule(tolerance=Config.AUDIT_TOLERANCE),
+            SefazCalculationRule(calculator=calculator, tolerance=Config.AUDIT_TOLERANCE),
             MVARule()
         ]

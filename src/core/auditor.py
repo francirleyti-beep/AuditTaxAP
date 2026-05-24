@@ -30,8 +30,15 @@ class AuditEngine:
                 if diff:
                     differences.append(diff)
             except Exception as e:
-                self.logger.error(f"Erro ao executar regra {type(rule).__name__}: {e}", exc_info=True)
-                # Opcional: Adicionar erro sistêmico na lista de diferenças?
+                rule_name = type(rule).__name__
+                self.logger.error(f"Erro ao executar regra {rule_name}: {e}", exc_info=True)
+                # Adiciona erro técnico como diferença para visibilidade do usuário
+                differences.append(AuditDifference(
+                    field="ERRO_TECNICO",
+                    xml_value="-",
+                    sefaz_value="-",
+                    message=f"Falha na regra {rule_name}: {str(e)}"
+                ))
                 
         is_compliant = (len(differences) == 0)
         

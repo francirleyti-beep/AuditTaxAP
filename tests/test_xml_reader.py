@@ -23,7 +23,7 @@ class TestXMLReader(unittest.TestCase):
         item1 = items[0]
         self.assertEqual(item1.product_code, "PROD-001")
         self.assertEqual(item1.ncm, "22021000")
-        self.assertEqual(item1.cst, "00")
+        self.assertEqual(item1.cst, "000")
         self.assertEqual(item1.tax_value, Decimal("18.00"))
         self.assertFalse(item1.is_suframa_benefit)
 
@@ -31,7 +31,7 @@ class TestXMLReader(unittest.TestCase):
         item2 = items[1]
         self.assertEqual(item2.product_code, "PROD-002-SUFRAMA")
         self.assertEqual(item2.ncm, "84713012")
-        self.assertEqual(item2.cst, "40") # Isento/No tributado
+        self.assertEqual(item2.cst, "040") # Isento/No tributado
         self.assertTrue(item2.is_suframa_benefit, "Deve identificar benefcio Suframa (motDesICMS=7)")
         self.assertEqual(item2.tax_value, Decimal("0.00"), "ICMS deve ser zero para CST 40")
 

@@ -42,7 +42,7 @@ class TestSefazScraper(unittest.TestCase):
 
         # Item 2 Check
         item2 = items[1]
-        self.assertEqual(item2.product_code, "PROD-002-SUFRAMA")
+        self.assertEqual(item2.product_code, "00002")
         self.assertEqual(item2.tax_value, Decimal("0.00"))
 
 if __name__ == '__main__':

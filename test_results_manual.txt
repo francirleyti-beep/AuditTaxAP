@@ -7,6 +7,6 @@ test_item_extractor_default_cfop (tests.test_modular_scraper.TestModularScraper.
 test_parse_html (tests.test_scraper.TestSefazScraper.test_parse_html) ... ok
 
 ----------------------------------------------------------------------
-Ran 7 tests in 0.023s
+Ran 7 tests in 0.005s
 
 OK
